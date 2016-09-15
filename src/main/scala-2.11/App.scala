@@ -3,6 +3,8 @@ import java.util.Properties
 
 import akka.actor.{ActorSystem, Props}
 import akka.io.IO
+import dao.UserDAO
+import entities.DatabaseHelper
 import spray.can.Http
 import akka.pattern.ask
 import akka.util.Timeout
@@ -22,6 +24,7 @@ object App {
 //    val name: String = file.getName
 //    val path1: String = file.getPath
 //    val path2: String = file.getCanonicalPath
+    DatabaseHelper.create()
     val PATH = getClass.getResource("css/test.css").getPath
     // we need an ActorSystem to host our application in
     implicit val system = ActorSystem("on-spray-can")
