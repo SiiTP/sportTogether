@@ -1,5 +1,6 @@
 package entities
-
+import java.io.FileReader
+import java.util.Properties
 import entities.Tables._
 import slick.driver.MySQLDriver.api._
 import slick.jdbc.meta.MTable
@@ -12,6 +13,16 @@ import scala.concurrent.duration.Duration
 object DatabaseHelper {
   private val db = Database.forConfig("mysqlDB")
   def getInstance = db
+  def init(s: String) = {
+    println(s)
+    val properties = new Properties()
+    properties.load(new FileReader(s +'/' + "application.conf"))
+    properties.getProperty("db") match {
+      case "create" => recreate()
+      case _ => None
+    }
+
+  }
   def create(): Unit ={
 
     if(!isCreated){
@@ -22,7 +33,12 @@ object DatabaseHelper {
     }
   }
   def isCreated = Await.result(db.run(MTable.getTables), Duration.Inf).nonEmpty
-
+  def recreate(): Unit ={
+    val p = new Properties()
+    p.load(new FileReader("application.conf"))
+    drop()
+    create()
+  }
   def drop(): Unit ={
     if(isCreated){
       Await.result(db.run(DBIO.seq(

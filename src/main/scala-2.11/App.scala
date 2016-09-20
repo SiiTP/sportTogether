@@ -1,18 +1,16 @@
-import java.io.File
-import java.util.Properties
-
 import akka.actor.{ActorSystem, Props}
 import akka.io.IO
-import dao.UserDAO
-import entities.DatabaseHelper
-import spray.can.Http
 import akka.pattern.ask
 import akka.util.Timeout
-
-import scala.concurrent.duration._
+import entities.{MapCategory, MapEvent, DatabaseHelper}
 import service.StaticServiceActor
+import spray.can.Http
 
-import scala.io.Source
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import dao.{CategoryDAO, EventsDAO}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Success
 
 /**
   * Created by root on 11.07.16.
@@ -24,7 +22,7 @@ object App {
 //    val name: String = file.getName
 //    val path1: String = file.getPath
 //    val path2: String = file.getCanonicalPath
-    DatabaseHelper.create()
+    DatabaseHelper.init(App.getClass.getProtectionDomain.getCodeSource.getLocation.getPath)
     val PATH = getClass.getResource("css/test.css").getPath
     // we need an ActorSystem to host our application in
     implicit val system = ActorSystem("on-spray-can")
