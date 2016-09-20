@@ -3,11 +3,13 @@ package service
 import java.util
 import java.util.Calendar
 
+import akka.actor.Actor
+import akka.actor.Actor.Receive
 import dao.AccountDAO
 import entities.Account
 import org.jetbrains.annotations.TestOnly
 
-class AccountService(val accountDAO: AccountDAO) {
+class AccountService(val accountDAO: AccountDAO) extends Actor {
 
   private val _authAccounts = new util.HashMap[String, Account]
   private val _sessionTimeout = new util.HashMap[String, Long]
@@ -86,6 +88,11 @@ class AccountService(val accountDAO: AccountDAO) {
       return Some(_authAccounts.get(session))
     }
     None
+  }
+
+  override def receive = {
+    case "test" => println("test received")
+    case _ => println("other received")
   }
 }
 
