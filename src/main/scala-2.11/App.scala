@@ -19,8 +19,8 @@ import scala.util.Success
   */
 object App {
   def main(args: Array[String]): Unit = {
-    DatabaseHelper.init(App.getClass.getProtectionDomain.getCodeSource.getLocation.getPath)
-
+    val dbHelper = new DatabaseHelper("mysqlDB")
+    dbHelper.init(App.getClass.getProtectionDomain.getCodeSource.getLocation.getPath)
     // we need an ActorSystem to host our application in
     implicit val system = ActorSystem("actor-system-1")
 

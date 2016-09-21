@@ -7,7 +7,7 @@ import scala.concurrent.Future
 /**
   * Created by ivan on 16.09.16.
   */
-class UserDAO extends DatabaseDAO[User]{
+class UserDAO extends DatabaseDAO[User,String]{
   private val table = Tables.users
 
   override def create(r: User): Future[User] = {
@@ -20,7 +20,7 @@ class UserDAO extends DatabaseDAO[User]{
     val action = query.update(r)
     execute(action)
   }
-  override def get(r: User): Future[User] = execute(table.filter(_.token === r.token).result.head)
+  override def get(token: String): Future[User] = execute(table.filter(_.token === token).result.head)
 
   override def delete(r: User): Future[Int] = execute(table.filter(_.token === r.token).delete)
 }

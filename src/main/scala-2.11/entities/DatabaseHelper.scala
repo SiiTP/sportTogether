@@ -10,13 +10,13 @@ import scala.concurrent.duration.Duration
 /**
   * Created by ivan on 15.09.16.
   */
-object DatabaseHelper {
-  private val db = Database.forConfig("mysqlDB")
+class DatabaseHelper(val config:String) {
+  private val db = Database.forConfig(config)
   def getInstance = db
-  def init(s: String) = {
-    println(s)
+  def init(workingDirPath: String) = {
+    println(workingDirPath)
     val properties = new Properties()
-    properties.load(new FileReader(s +'/' + "application.conf"))
+    properties.load(new FileReader(workingDirPath +'/' + "application.conf"))
     properties.getProperty("db") match {
       case "create" => recreate()
       case _ => None
