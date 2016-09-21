@@ -2,8 +2,6 @@ package dao
 
 import entities.DatabaseHelper
 import slick.dbio.{DBIOAction, NoStream}
-import slick.driver.MySQLDriver
-import slick.driver.MySQLDriver.api._
 
 /**
   * Created by ivan on 19.09.16.

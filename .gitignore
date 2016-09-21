@@ -1,4 +1,9 @@
 .idea/workspace.xml
+<<<<<<< HEAD
 .idea/modules
 .idea/modules.xml
 target/
+=======
+.idea/vcs.xml
+target
+>>>>>>> master
