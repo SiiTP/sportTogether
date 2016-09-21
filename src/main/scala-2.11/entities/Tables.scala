@@ -14,7 +14,9 @@ object Tables {
 
 case class MapCategory(name:String,id:Option[Int] = None)
 case class MapEvent(name:String, categoryId:Int,latitude:Double,longtitude:Double,id:Option[Int] = None)
-case class User(token:String,role:String)
+case class User(token:String,role:Int,id:Option[Int] = None)
+
+
 
 class MapCategories(tag:Tag) extends Table[MapCategory](tag,"category"){
   def id = column[Int]("cat_id",O.PrimaryKey,O.AutoInc)
@@ -31,7 +33,8 @@ class MapEvents(tag:Tag) extends Table[MapEvent](tag,"events"){
   def * = (name,catId,latitude,longtitude,id.?) <> (MapEvent.tupled,MapEvent.unapply)
 }
 class Users(tag:Tag) extends Table[User](tag,"user"){
-  def token = column[String]("token", O.PrimaryKey)
-  def role = column[String]("role")
-  def * = (token,role) <> (User.tupled,User.unapply)
+  def id = column[Int]("id",O.PrimaryKey,O.AutoInc)
+  def token = column[String]("token")
+  def role = column[Int]("role")
+  def * = (token,role,id.?) <> (User.tupled,User.unapply)
 }

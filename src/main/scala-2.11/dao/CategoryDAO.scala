@@ -7,7 +7,7 @@ import scala.concurrent.Future
 /**
   * Created by ivan on 20.09.16.
   */
-class CategoryDAO extends DatabaseDAO[MapCategory]{
+class CategoryDAO extends DatabaseDAO[MapCategory,Int]{
   private val table = Tables.categories
   override def create(r: MapCategory): Future[MapCategory] = {
     val insert = (table returning table.map(_.id)).into( (item,id) => item.copy(id = Some(id)))
@@ -20,7 +20,7 @@ class CategoryDAO extends DatabaseDAO[MapCategory]{
     execute(action)
   }
 
-  override def get(r: MapCategory): Future[MapCategory] = execute(table.filter(_.id===r.id).result.head)
+  override def get(categoryId: Int): Future[MapCategory] = execute(table.filter(_.id === categoryId).result.head)
 
   override def delete(r: MapCategory): Future[Int] = execute(table.filter(_.id===r.id).delete)
 

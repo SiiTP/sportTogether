@@ -15,8 +15,9 @@ import scala.concurrent.duration._
   */
 object App {
   def main(args: Array[String]): Unit = {
-
-    DatabaseHelper.init(App.getClass.getResource("application.conf").getPath)
+    DatabaseHelper.config("mysqlDB")
+    val dbHelper = new DatabaseHelper()
+    dbHelper.init(App.getClass.getResource("application.conf").getPath)
 
     // we need an ActorSystem to host our application in
     implicit val system = ActorSystem("actor-system-1")
