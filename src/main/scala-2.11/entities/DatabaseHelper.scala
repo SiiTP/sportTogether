@@ -34,8 +34,6 @@ object DatabaseHelper {
   }
   def isCreated = Await.result(db.run(MTable.getTables), Duration.Inf).nonEmpty
   def recreate(): Unit ={
-    val p = new Properties()
-    p.load(new FileReader("application.conf"))
     drop()
     create()
   }
