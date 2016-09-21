@@ -1,6 +1,8 @@
 package entities
 import java.io.FileReader
+import java.net.URL
 import java.util.Properties
+
 import entities.Tables._
 import slick.driver.MySQLDriver.api._
 import slick.jdbc.meta.MTable
@@ -13,10 +15,12 @@ import scala.concurrent.duration.Duration
 object DatabaseHelper {
   private val db = Database.forConfig("mysqlDB")
   def getInstance = db
-  def init(s: String) = {
-    println(s)
+  def getTestInstance(url: URL) = Database.forURL(url.getPath)
+  def init(configPath: String) = {
     val properties = new Properties()
-    properties.load(new FileReader(s +'/' + "application.conf"))
+    properties.load(new FileReader(configPath))
+    val property: String = properties.getProperty("mysqlDB")
+    println(property)
     properties.getProperty("db") match {
       case "create" => recreate()
       case _ => None
@@ -34,8 +38,8 @@ object DatabaseHelper {
   }
   def isCreated = Await.result(db.run(MTable.getTables), Duration.Inf).nonEmpty
   def recreate(): Unit ={
-    val p = new Properties()
-    p.load(new FileReader("application.conf"))
+//    val p = new Properties()
+//    p.load(new FileReader("application.conf"))
     drop()
     create()
   }
