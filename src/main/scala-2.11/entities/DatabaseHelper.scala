@@ -30,7 +30,7 @@ class DatabaseHelper{
     if(!isCreated){
       Await.result(db.run(DBIO.seq(
         (users.schema ++ events.schema ++ categories.schema).create
-      )),Duration.Inf)
+      )), Duration.Inf)
       println("DATABASE CREATED")
     }
   }
@@ -44,23 +44,23 @@ class DatabaseHelper{
       users     . delete,
       events    . delete,
       categories. delete
-    )),Duration.Inf)
+    )), Duration.Inf)
 
   def drop(): Unit ={
     if(isCreated){
       Await.result(db.run(DBIO.seq(
         (users.schema ++ events.schema ++ categories.schema).drop
-      )),Duration.Inf)
+      )), Duration.Inf)
       println("DATABASE DROPPED")
     }
   }
 }
 
 object DatabaseHelper{
-  lazy val db: Database = Database.forConfig(configPath,config)
-  private var configPath : String = "mysqlDB"
+  lazy val db : Database = Database.forConfig(configPath, config)
+  private var configPath: String = "mysqlDB"
   private var config = ConfigFactory.load()
-  def config(configName:String,configFile : File = null): Unit ={
+  def config(configName: String, configFile : File = null): Unit = {
     configPath = configName
     if(configFile != null)
       config = ConfigFactory.parseFile(configFile)
