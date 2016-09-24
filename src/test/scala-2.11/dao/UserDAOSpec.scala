@@ -4,7 +4,7 @@ import java.io.File
 import java.net.URL
 import java.util.concurrent.TimeUnit
 
-import entities.{Account, DatabaseHelper, Roles, User}
+import entities.db.{DatabaseHelper, Roles, User}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 

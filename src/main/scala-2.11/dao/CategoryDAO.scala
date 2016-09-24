@@ -1,6 +1,6 @@
 package dao
 
-import entities.{MapEvents, Tables, MapCategory}
+import entities.db.{MapEvents, Tables, MapCategory}
 import slick.driver.MySQLDriver.api._
 import scala.concurrent.Future
 

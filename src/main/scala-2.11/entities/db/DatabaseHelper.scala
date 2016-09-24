@@ -1,10 +1,10 @@
-package entities
+package entities.db
+
 import java.io.{File, FileReader}
-import java.net.URL
 import java.util.Properties
 
 import com.typesafe.config.ConfigFactory
-import entities.Tables._
+import entities.db.Tables._
 import slick.driver.MySQLDriver.api._
 import slick.jdbc.meta.MTable
 

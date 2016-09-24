@@ -1,4 +1,4 @@
-package entities;
+package entities.db;
 
 /**
  * Created by ivan on 21.09.16.

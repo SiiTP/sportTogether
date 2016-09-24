@@ -1,4 +1,4 @@
-package entities
+package entities.db
 
 import slick.driver.MySQLDriver.api._
 import slick.lifted.Tag

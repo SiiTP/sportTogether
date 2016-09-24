@@ -3,40 +3,63 @@ package service
 import java.util
 import java.util.Calendar
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef}
 import akka.actor.Actor.Receive
-import dao.AccountDAO
+import dao.{AccountDAO, UserDAO}
 import entities.Account
+import entities.db.User
 import org.jetbrains.annotations.TestOnly
-import service.AccountService.Authorize
+import service.AccountService.AccountHello
+import service.RouteServiceActor.{Authorize, IsAuthorized, RouteHello}
 
-class AccountService extends Actor {
+import scala.collection.immutable.Range.Inclusive
 
-  private val _authAccounts = new util.HashMap[String, Account]
-  private val _sessionTimeout = new util.HashMap[String, Long]
+class AccountServiceActor(accountService: AccountService) extends Actor {
+
+  override def receive = {
+    case RouteHello(msg) =>
+      println(s"Hello from route : $msg")
+      val sender1: ActorRef = sender
+      (1 to 100000).max(new Ordering[Int] {
+        override def compare(x: Int, y: Int): Int = {
+          if (x % 2 == 0) {
+            return -1
+          }
+          if (y % 2 == 0) {
+            return -1
+          }
+          0
+        }
+      })
+      sender1 ! AccountHello("I'm account")
+    case IsAuthorized(session) => {
+      accountService.isAuthorized(session) match {
+        case Some(user) => ResponseSuccess[User](_, _, user)
+      }
+    }
+    case Authorize(session, token, id) => println(s"Authorize : $session - $token");
+    case _ => println("other received")
+  }
+}
+
+object AccountService extends AbstractService {
+  case class AccountHello(msg: String)
+}
+
+class AccountService() {
+  lazy val userDAO = new UserDAO()
+  private val _authAccounts = new util.HashMap[String, User]
 
   @TestOnly
   def authAccounts() = _authAccounts
-  @TestOnly
-  def sessionTimeout() = _sessionTimeout
 
-//  def isAuthorized(session : String) : Integer = {
-//    val timeout = _sessionTimeout.get(session)
-//    if (timeout == 0) {
-//      return AccountService.CODE_NOT_AUTHORIZED
-//    }
+  def isAuthorized(session : String): Option[User] = {
+    if (_authAccounts.containsKey(session))
+      Some(_authAccounts.get(session))
+    else
+      None
+  }
 //
-//    val now = Calendar.getInstance.getTimeInMillis
-//    if (now > timeout) {
-//      unAuthorize(session)
-//      AccountService.CODE_NOT_AUTHORIZED_TIMEOUT
-//    } else {
-//      AccountService.CODE_AUTHORIZED
-//    }
-//
-//
-//  }
-
 //  def authorize(session : String, name: String, password : String, timeoutTime : Long) : Integer = {
 //    isAuthorized(session).toInt match {
 //      case AccountService.CODE_AUTHORIZED => AccountService.CODE_AUTH_ALREADY
@@ -90,28 +113,4 @@ class AccountService extends Actor {
 //    }
 //    None
 //  }
-
-  override def receive = {
-    case Authorize(session, token) => println(s"Authorize : $session - $token");
-    case _ => println("other received")
-  }
-}
-
-object AccountService {
-  val CODE_AUTHORIZED = 0
-
-  val CODE_NOT_AUTHORIZED = 1
-  val CODE_NOT_AUTHORIZED_TIMEOUT = 2
-
-  val CODE_AUTH_ALREADY = 10
-  val CODE_AUTH_SUCCESSFUL = 11
-  val CODE_AUTH_UNSUCCESSFUL = 12
-
-  val CODE_REG_SUCCESSFUL = 20
-  val CODE_REG_ACC_EXIST = 21
-
-  val AUTH_TIMEOUT_WEEK : Long = 7 * 24 * 60 * 60 * 1000
-  def timeoutNextWeek() = Calendar.getInstance().getTimeInMillis + AUTH_TIMEOUT_WEEK
-
-  case class Authorize(session: String, token: String)
 }

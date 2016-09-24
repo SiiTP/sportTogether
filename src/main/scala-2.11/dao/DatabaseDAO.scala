@@ -1,6 +1,6 @@
 package dao
 
-import entities.DatabaseHelper
+import entities.db.DatabaseHelper
 import slick.dbio.{DBIOAction, NoStream}
 
 /**
