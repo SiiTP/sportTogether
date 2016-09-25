@@ -4,13 +4,13 @@ import java.util
 
 import akka.actor.{Actor, ActorRef}
 import dao.UserDAO
-import entities.db.User
+import entities.db.{EntitiesJsonProtocol, User}
 import org.jetbrains.annotations.TestOnly
 import response.{AccountResponse, MyResponse}
 import service.AccountService.AccountHello
 import service.RouteServiceActor.{Authorize, IsAuthorized, RouteHello}
-
 import spray.json._
+import EntitiesJsonProtocol._
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future, duration}
@@ -20,30 +20,21 @@ class AccountServiceActor(accountService: AccountService) extends Actor with Acc
   override def receive = {
     case RouteHello(msg) =>
       println(s"Hello from route : $msg")
-      val sender1: ActorRef = sender
-      (1 to 100000).max(new Ordering[Int] {
-        override def compare(x: Int, y: Int): Int = {
-          if (x % 2 == 0) {
-            return -1
-          }
-          if (y % 2 == 0) {
-            return -1
-          }
-          0
-        }
-      })
-      sender1 ! AccountHello("I'm account")
+      sender ! AccountHello("I'm account")
+
     case IsAuthorized(session) =>
-      val authorized: Option[User] = accountService.isAuthorized(session)
-      authorized match {
+      accountService.isAuthorized(session) match {
         case Some(user) =>
-          println("some")
-          sender ! "!"
-//          responseAlreadyAuthorized.toJson.prettyPrint
-//          responseSuccess[User](user.asInstanceOf[User]).toJson.prettyPrint
-        case None => sender ! "!!"/*responseNotAuthorized.toJson.prettyPrint*/
+          sender ! responseSuccess[User](Some(user)).toJson.prettyPrint
+        case None => sender ! responseNotAuthorized.toJson.prettyPrint
       }
-    case Authorize(session, token, clientId) => println(s"Authorize : $session - $token");
+
+    case Authorize(session, token, clientId) =>
+      accountService.authorize(session, token, clientId) match {
+        case AccountResponse.CODE_AUTH_ALREADY => sender ! responseAlreadyAuthorized.toJson.prettyPrint
+        case MyResponse.CODE_SUCCESS           => sender ! responseSuccess[User](None).toJson.prettyPrint
+        case MyResponse.CODE_NOT_SUCCESS       => sender ! responseError(111, "not success").toJson.prettyPrint
+      }
     case _ => println("other received")
   }
 }

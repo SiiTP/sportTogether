@@ -1,10 +1,9 @@
-import java.net.URL
-
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorSystem, Props}
 import akka.io.IO
 import akka.pattern.ask
 import akka.util.Timeout
 import entities.db.{DatabaseHelper, EntitiesJsonProtocol, User}
+import response.MyResponse
 import service.{AccountService, AccountServiceActor, RouteServiceActor}
 import spray.can.Http
 
@@ -16,15 +15,13 @@ import scala.concurrent.duration._
 /**
   * Created by root on 11.07.16.
   */
-object App {
+object App extends MyResponse {
   def main(args: Array[String]): Unit = {
-    import response.ResponseJsonProtocol._
-    import EntitiesJsonProtocol._
-    import spray.json._
-    println(User("clientId", 1, Some(1)).toJson.prettyPrint)
-    println(User("clientId", 2, None).toJson.prettyPrint)
-    println(User("clientId", 3).toJson.prettyPrint)
-    val print1: String = responseError(1, "azaza").toJson.prettyPrint
+//    import EntitiesJsonProtocol._
+//    import spray.json._
+//
+//    println(User("a", 1, Some(1)).toJson.prettyPrint)
+//    println(responseSuccess[User](None).toJson.prettyPrint)
     DatabaseHelper.config("mysqlDB")
     val dbHelper = new DatabaseHelper()
     dbHelper.init(App.getClass.getResource("application.conf").getPath)

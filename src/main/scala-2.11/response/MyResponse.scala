@@ -1,6 +1,9 @@
 package response
 
-import spray.json.DefaultJsonProtocol
+import entities.db.User
+import spray.json.{DefaultJsonProtocol, JsObject, JsValue, JsonFormat}
+
+//import spray.json._
 
 /**
   * Created by root on 24.09.16.
@@ -10,17 +13,22 @@ object MyResponse {
   val CODE_NOT_SUCCESS = 1
 }
 
-trait MyResponse {
-  case class ResponseSuccess[T](code: Int = MyResponse.CODE_SUCCESS, message: String, data: T = None)
+trait MyResponse extends DefaultJsonProtocol {
+  implicit val errorFormat = jsonFormat2(ResponseError)
+  implicit def successFormat[T: JsonFormat] = jsonFormat3(ResponseSuccess.apply[T])
+
+  case class ResponseSuccess[T](code: Int = MyResponse.CODE_SUCCESS, message: String, data: Option[T] = None)
   case class ResponseError(code: Int, message: String)
 
-  def responseSuccess[T](data: T) = ResponseSuccess[T](MyResponse.CODE_SUCCESS, "Success!", data)
+  def responseSuccess[T](data: Option[T]) = ResponseSuccess[T](MyResponse.CODE_SUCCESS, "Success!", data)
   def responseError(code: Int, message: String) = ResponseError(code, message)
+
+
 }
 
-object ResponseJsonProtocol extends DefaultJsonProtocol with MyResponse {
-  implicit val errorFormat = jsonFormat2(ResponseError)
-  //    implicit val successFormat = jsonFormat4(ResponseSuccess[User])
-}
+//object ResponseJsonProtocol extends DefaultJsonProtocol with MyResponse {
+//  implicit val errorFormat = jsonFormat2(ResponseError)
+//  implicit def successFormat[T: JsonFormat] = jsonFormat3(ResponseSuccess.apply[T])
+//}
 
 

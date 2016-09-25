@@ -46,7 +46,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef) extends Actor with 
 object RouteServiceActor {
   case class RouteHello(msg: String)
 
-  case class Authorize(session: String, token: String, id: Int)
+  case class Authorize(session: String, token: String, clientId: String)
   case class IsAuthorized(session: String)
   case class Unauthorize(session: String)
   case class GetAccount(session: String)
