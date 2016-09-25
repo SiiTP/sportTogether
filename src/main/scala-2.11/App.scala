@@ -4,7 +4,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import entities.db.{DatabaseHelper, EntitiesJsonProtocol, User}
 import response.MyResponse
-import service.{AccountService, AccountServiceActor, RouteServiceActor}
+import service._
 import spray.can.Http
 
 case class my(msg: String)
@@ -31,10 +31,14 @@ object App extends MyResponse {
     implicit val timeout = Timeout(5.seconds)
 
     // create and start our service actor
+    val eventService = new EventService()
+    val eventServiceActor = system.actorOf(Props(classOf[EventServiceActor],eventService),"eventService")
+
     val accountService = new AccountService()
     val accountServiceActor = system.actorOf(Props(classOf[AccountServiceActor], accountService), "accountService")
     val routeServiceActor = system.actorOf(Props(classOf[RouteServiceActor], accountServiceActor), "routeService")
 
+    routeServiceActor ! RouteServiceActor.InitEventService(eventServiceActor)
     // start a new HTTP server on port 8080 with our service actor as the handler
     IO(Http) ? Http.Bind(routeServiceActor, interface = "localhost", port = 8080)
 

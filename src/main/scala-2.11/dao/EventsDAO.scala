@@ -37,4 +37,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int]{
     } yield i
     execute(seq.result)
   }
+  def eventsByUserId(id:Int): Future[Seq[MapEvent]] = {
+    execute(table.filter(_.userId === id).result)
+  }
 }

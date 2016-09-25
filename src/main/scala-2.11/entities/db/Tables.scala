@@ -2,7 +2,7 @@ package entities.db
 
 import slick.driver.MySQLDriver.api._
 import slick.lifted.Tag
-import spray.json.DefaultJsonProtocol
+import spray.json._
 
 /**
   * Created by ivan on 15.09.16.
@@ -14,12 +14,12 @@ object Tables {
 }
 
 case class MapCategory(name: String, id: Option[Int] = None)
-case class MapEvent(name: String, categoryId: Int, latitude: Double, longtitude: Double, id: Option[Int] = None)
+case class MapEvent(name: String, categoryId: Int,  latitude: Double, longtitude: Double,userId: Option[Int] = None, id: Option[Int] = None)
 case class User(clientId: String, role: Int, id: Option[Int] = None)
 
 object EntitiesJsonProtocol extends DefaultJsonProtocol {
   implicit val userFormat = jsonFormat3(User)
-  implicit val mapEventFormat = jsonFormat5(MapEvent)
+  implicit val mapEventFormat = jsonFormat6(MapEvent)
   implicit val mapCategoryFormat = jsonFormat2(MapCategory)
 
 }
@@ -35,10 +35,12 @@ class MapEvents(tag:Tag) extends Table[MapEvent](tag,"events"){
   def id = column[Int]("id",O.PrimaryKey,O.AutoInc)
   def name = column[String]("name")
   def catId = column[Int]("cat_id")
+  def userId = column[Int]("user_id")
   def latitude = column[Double]("latitude")
   def longtitude = column[Double]("longtitude")
   def mapCategory = foreignKey("cat_fk",catId,Tables.categories)(_.id)
-  def * = (name,catId,latitude,longtitude,id.?) <> (MapEvent.tupled,MapEvent.unapply)
+  def mapUser = foreignKey("user_fk",userId,Tables.users)(_.id)
+  def * = (name,catId,latitude,longtitude,userId.?,id.?) <> (MapEvent.tupled,MapEvent.unapply)
 }
 class Users(tag:Tag) extends Table[User](tag,"user"){
   def id = column[Int]("id",O.PrimaryKey,O.AutoInc)
