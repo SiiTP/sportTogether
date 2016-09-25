@@ -2,6 +2,7 @@ package entities.db
 
 import slick.driver.MySQLDriver.api._
 import slick.lifted.Tag
+import spray.json.DefaultJsonProtocol
 
 /**
   * Created by ivan on 15.09.16.
@@ -12,9 +13,16 @@ object Tables {
   var users = TableQuery[Users]
 }
 
-case class MapCategory(name:String,id:Option[Int] = None)
-case class MapEvent(name:String, categoryId:Int,latitude:Double,longtitude:Double,id:Option[Int] = None)
-case class User(token:String,role:Int,id:Option[Int] = None)
+case class MapCategory(name: String, id: Option[Int] = None)
+case class MapEvent(name: String, categoryId: Int, latitude: Double, longtitude: Double, id: Option[Int] = None)
+case class User(clientId: String, role: Int, id: Option[Int] = None)
+
+object EntitiesJsonProtocol extends DefaultJsonProtocol {
+  implicit val userFormat = jsonFormat3(User)
+  implicit val mapEventFormat = jsonFormat5(MapEvent)
+  implicit val mapCategoryFormat = jsonFormat2(MapCategory)
+
+}
 
 
 
@@ -34,7 +42,7 @@ class MapEvents(tag:Tag) extends Table[MapEvent](tag,"events"){
 }
 class Users(tag:Tag) extends Table[User](tag,"user"){
   def id = column[Int]("id",O.PrimaryKey,O.AutoInc)
-  def token = column[String]("token")
+  def clientId = column[String]("clientId")
   def role = column[Int]("role")
-  def * = (token,role,id.?) <> (User.tupled,User.unapply)
+  def * = (clientId, role, id.?) <> (User.tupled,User.unapply)
 }

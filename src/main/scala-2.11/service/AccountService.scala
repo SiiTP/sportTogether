@@ -1,20 +1,21 @@
 package service
 
 import java.util
-import java.util.Calendar
 
 import akka.actor.{Actor, ActorRef}
-import akka.actor.Actor.Receive
-import dao.{AccountDAO, UserDAO}
-import entities.Account
+import dao.UserDAO
 import entities.db.User
 import org.jetbrains.annotations.TestOnly
+import response.{AccountResponse, MyResponse}
 import service.AccountService.AccountHello
 import service.RouteServiceActor.{Authorize, IsAuthorized, RouteHello}
 
-import scala.collection.immutable.Range.Inclusive
+import spray.json._
 
-class AccountServiceActor(accountService: AccountService) extends Actor {
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future, duration}
+
+class AccountServiceActor(accountService: AccountService) extends Actor with AccountResponse {
 
   override def receive = {
     case RouteHello(msg) =>
@@ -32,21 +33,26 @@ class AccountServiceActor(accountService: AccountService) extends Actor {
         }
       })
       sender1 ! AccountHello("I'm account")
-    case IsAuthorized(session) => {
-      accountService.isAuthorized(session) match {
-        case Some(user) => ResponseSuccess[User](_, _, user)
+    case IsAuthorized(session) =>
+      val authorized: Option[User] = accountService.isAuthorized(session)
+      authorized match {
+        case Some(user) =>
+          println("some")
+          sender ! "!"
+//          responseAlreadyAuthorized.toJson.prettyPrint
+//          responseSuccess[User](user.asInstanceOf[User]).toJson.prettyPrint
+        case None => sender ! "!!"/*responseNotAuthorized.toJson.prettyPrint*/
       }
-    }
-    case Authorize(session, token, id) => println(s"Authorize : $session - $token");
+    case Authorize(session, token, clientId) => println(s"Authorize : $session - $token");
     case _ => println("other received")
   }
 }
 
-object AccountService extends AbstractService {
+object AccountService {
   case class AccountHello(msg: String)
 }
 
-class AccountService() {
+class AccountService {
   lazy val userDAO = new UserDAO()
   private val _authAccounts = new util.HashMap[String, User]
 
@@ -59,8 +65,23 @@ class AccountService() {
     else
       None
   }
-//
-//  def authorize(session : String, name: String, password : String, timeoutTime : Long) : Integer = {
+
+  def authorize(session: String, token: String, clientId: String) : Int = {
+    isAuthorized(session) match {
+      case Some(user) => return AccountResponse.CODE_AUTH_ALREADY
+    }
+
+    val userFuture = userDAO.getByClientId(clientId)
+    Await.result(userFuture, Duration(2, duration.SECONDS)) match {
+      case User(userClientId, role, id) =>
+
+        //TODO if token right else not success
+        _authAccounts.put(session, new User(userClientId, role, id))
+        MyResponse.CODE_SUCCESS
+
+      case _ => MyResponse.CODE_NOT_SUCCESS
+    }
+
 //    isAuthorized(session).toInt match {
 //      case AccountService.CODE_AUTHORIZED => AccountService.CODE_AUTH_ALREADY
 //      case _ =>
@@ -78,7 +99,7 @@ class AccountService() {
 //          case None => AccountService.CODE_AUTH_UNSUCCESSFUL
 //        }
 //    }
-//  }
+  }
 //
 //  def authorizePermanently(session: String, name: String, password: String) =
 //    authorize(session, name, password, Long.MaxValue)

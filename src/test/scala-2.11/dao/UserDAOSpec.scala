@@ -34,7 +34,7 @@ class UserDAOSpec extends FlatSpec with MockFactory with Matchers with BeforeAnd
     val createdUser: User = awaitResult(createdFuture)
     awaitResult(userDAO.count) shouldBe 1
     createdUser.role shouldBe Roles.USER.getRoleId
-    createdUser.token shouldBe "token"
+    createdUser.clientId shouldBe "token"
   }
   it should "delete user" in {
     val user = User("token", Roles.USER.getRoleId)
@@ -56,7 +56,7 @@ class UserDAOSpec extends FlatSpec with MockFactory with Matchers with BeforeAnd
     user = awaitResult(userDAO.get(user.id.get))
 
     user.role shouldBe Roles.ADMIN.getRoleId
-    user.token shouldBe newToken
+    user.clientId shouldBe newToken
   }
 
   it should "not update not exist user" in {

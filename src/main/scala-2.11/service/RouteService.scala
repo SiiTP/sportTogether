@@ -3,7 +3,9 @@ package service
 import akka.actor.Actor
 import akka.pattern.AskableActorRef
 import akka.util.Timeout
-import service.AccountService.{AccountHello}
+import entities.db.User
+import response.AccountResponse
+import service.AccountService.AccountHello
 import service.RouteServiceActor.{IsAuthorized, RouteHello}
 import spray.routing._
 
@@ -11,7 +13,7 @@ import scala.concurrent.duration._
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future, duration}
 
-class RouteServiceActor(_accountServiceRef: AskableActorRef) extends Actor with RouteService {
+class RouteServiceActor(_accountServiceRef: AskableActorRef) extends Actor with RouteService with AccountResponse {
   implicit lazy val timeout = Timeout(5.seconds)
   def actorRefFactory = context
   def accountServiceRef: AskableActorRef = _accountServiceRef
@@ -27,23 +29,17 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef) extends Actor with 
     }
   }
   override def sendIsAuthorized(session: String) = {
-    awaitResult(accountServiceRef ? IsAuthorized(session)) match {
-
-    }
+    awaitResult(accountServiceRef ? IsAuthorized(session)).asInstanceOf[String]
   }
 
-  override def sendAuthorize: String = ???
-
-  override def sendUnauthorize: String = ???
-
-
+  override def sendAuthorize(session: String, clientId: String, token: String): String = ???
 
   def receive = handleMessages orElse runRoute(myRoute)
 
+  //это если актору надо принять наши сообщения
   def handleMessages: Receive = {
     case AccountHello(msg) => println("hello from account : " + msg)
   }
-
 
 }
 
@@ -61,15 +57,15 @@ trait RouteService extends HttpService {
   def accountServiceRef: AskableActorRef
 
   def sendHello : String
-  def sendIsAuthorized : String
-  def sendAuthorize : String
-  def sendUnauthorize : String
+  def sendIsAuthorized(session: String) : String
+  def sendAuthorize(session: String, clientId: String, token: String) : String
+//  def sendUnauthorize : String
 
   val auth = pathPrefix("auth") {
     cookie("JSESSIONID") {
-      name => {
+      jSession => {
         get {
-          complete(sendIsAuthorized)
+          complete(sendIsAuthorized(jSession.content))
         }
       }
     }

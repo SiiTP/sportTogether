@@ -21,7 +21,10 @@ class UserDAO extends DatabaseDAO[User,Int]{
     val action = query.update(r)
     execute(action)
   }
-  override def get(id: Int): Future[User] = execute(table.filter(_.id === id).result.head)
 
-  override def delete(r: User): Future[Int] = execute(table.filter(_.token === r.token).delete)
+  //TODO \find for unique fields
+  override def get(id: Int): Future[User] = execute(table.filter(_.id === id).result.head)
+  def getByClientId(clientId: String): Future[User] = execute(table.filter(_.clientId === clientId).result.head)
+
+  override def delete(r: User): Future[Int] = execute(table.filter(_.clientId === r.clientId).delete)
 }
