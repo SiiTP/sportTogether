@@ -31,8 +31,11 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef) extends Actor with 
   override def sendIsAuthorized(session: String) = {
     awaitResult(accountServiceRef ? IsAuthorized(session)).asInstanceOf[String]
   }
+  override def sendAuthorize(session: String, clientId: String, token: String): String = {"authorize"}
+  override def sendGetEvents(session: String, someFilter: Int): String = {
+    s"events url $session : $someFilter"
+  }
 
-  override def sendAuthorize(session: String, clientId: String, token: String): String = ???
 
   def receive = handleMessages orElse runRoute(myRoute)
 
@@ -56,10 +59,12 @@ object RouteServiceActor {
 trait RouteService extends HttpService {
   def accountServiceRef: AskableActorRef
 
-  def sendHello : String
-  def sendIsAuthorized(session: String) : String
+  def sendHello: String
+  def sendIsAuthorized(session: String): String
   def sendAuthorize(session: String, clientId: String, token: String) : String
-//  def sendUnauthorize : String
+  //  def sendUnauthorize : String
+
+  def sendGetEvents(session: String, someFilter: Int): String
 
   val auth = pathPrefix("auth") {
     cookie("JSESSIONID") {
@@ -69,7 +74,21 @@ trait RouteService extends HttpService {
         }
       }
     }
+  }
 
+  val events = pathPrefix("events") {
+    cookie("JSESSIONID") {
+      jSession => {
+        get {
+          parameters('filter.as[Int] ? 0) { filter =>
+            complete(sendGetEvents(jSession.content, filter))
+          }
+        } ~
+        post {
+          complete("POST")
+        }
+      }
+    }
   }
 
   val other = get {
@@ -86,6 +105,7 @@ trait RouteService extends HttpService {
 
   val myRoute = {
     auth ~
+    events ~
     other
   }
 }
