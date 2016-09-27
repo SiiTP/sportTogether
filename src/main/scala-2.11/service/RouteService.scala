@@ -96,7 +96,9 @@ trait RouteService extends HttpService {
           complete(sendIsAuthorized(jSession.content))
         } ~
         post {
-          complete
+          parameters('clientId, 'token) {(clientId, token) =>
+            complete(sendAuthorize(jSession.content, clientId, token))
+          }
         }
       }
     }
@@ -138,7 +140,6 @@ trait RouteService extends HttpService {
 
   val myRoute = {
     auth ~
-    events ~
     other ~
     event
   }
