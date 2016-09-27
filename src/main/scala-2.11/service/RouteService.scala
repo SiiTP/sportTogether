@@ -1,11 +1,11 @@
 package service
 
 import akka.actor.FSM.Failure
-import akka.actor.{ActorRef, Actor}
+import akka.actor.{Actor, ActorRef}
 import akka.pattern.AskableActorRef
 import akka.util.Timeout
 import entities.db.{EntitiesJsonProtocol, MapEvent, User}
-import response.AccountResponse
+import response.{AccountResponse, MyResponse}
 import service.AccountService.AccountHello
 import service.EventService.ResponseEvent
 import service.RouteServiceActor.{InitEventService, IsAuthorized, RouteHello}
@@ -14,10 +14,11 @@ import spray.routing.directives.OnSuccessFutureMagnet
 
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration
-import scala.concurrent.{ExecutionContext, Await, Future, duration}
+import scala.concurrent.{Await, ExecutionContext, Future, duration}
 import spray.json._
 import EntitiesJsonProtocol.mapEventFormat
 import spray.httpx.SprayJsonSupport._
+
 import ExecutionContext.Implicits.global
 import scala.util
 import scala.util.Success
@@ -28,9 +29,6 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef) extends Actor with 
   def accountServiceRef: AskableActorRef = _accountServiceRef
   var _eventService: Option[AskableActorRef] = None
   def eventsServiceRef = _eventService
-  def awaitResult(future: Future[Any]): Any = {
-    Await.result(future, Duration(2, duration.SECONDS))
-  }
 
   override def sendHello = {
     val future: Future[Any] = accountServiceRef ? RouteHello("Q")
@@ -40,11 +38,9 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef) extends Actor with 
     }
   }
   override def sendIsAuthorized(session: String) = {
-    awaitResult(accountServiceRef ? IsAuthorized(session)).asInstanceOf[String]
+    accountServiceRef ? IsAuthorized(session)
   }
   override def sendAuthorize(session: String, clientId: String, token: String): String = {"authorize"}
-
-
 
   def receive = handleMessages orElse runRoute(myRoute)
 
@@ -81,8 +77,8 @@ object RouteServiceActor {
 trait RouteService extends HttpService {
   def accountServiceRef: AskableActorRef
   def sendHello: String
-  def sendIsAuthorized(session: String): String
-  def sendAuthorize(session: String, clientId: String, token: String) : String
+  def sendIsAuthorized(session: String): Future[Any]
+  def sendAuthorize(session: String, clientId: String, token: String): String
   //  def sendUnauthorize : String
 
   //event service send
@@ -93,11 +89,18 @@ trait RouteService extends HttpService {
     cookie("JSESSIONID") {
       jSession => {
         get {
-          complete(sendIsAuthorized(jSession.content))
+          onComplete(sendIsAuthorized(jSession.content)) {
+            case Success(item) => complete(item.asInstanceOf[String])
+            case util.Failure(t) => complete("fail")
+          }
         } ~
         post {
+          complete("post")
           parameters('clientId, 'token) {(clientId, token) =>
-            complete(sendAuthorize(jSession.content, clientId, token))
+            onComplete(sendIsAuthorized(jSession.content)) {
+              case Success(item) => complete(item.asInstanceOf[String])
+              case util.Failure(t) => complete("fail")
+            }
           }
         }
       }
@@ -111,7 +114,7 @@ trait RouteService extends HttpService {
         }~
         post{
           entity(as[MapEvent]){ event =>
-            val future = sendAddEvent(event,User("fwefwef",entities.db.Roles.USER.getRoleId,Some(1)))
+            val future = sendAddEvent(event, User("fwefwef", entities.db.Roles.USER.getRoleId,Some(1)))
             onComplete(future){
               case Success(item) => {
                 println("complete")
