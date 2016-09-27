@@ -36,9 +36,8 @@ object App extends MyResponse {
 
     val accountService = new AccountService()
     val accountServiceActor = system.actorOf(Props(classOf[AccountServiceActor], accountService), "accountService")
-    val routeServiceActor = system.actorOf(Props(classOf[RouteServiceActor], accountServiceActor), "routeService")
+    val routeServiceActor = system.actorOf(Props(classOf[RouteServiceActor], accountServiceActor,eventServiceActor), "routeService")
 
-    routeServiceActor ! RouteServiceActor.InitEventService(eventServiceActor)
     // start a new HTTP server on port 8080 with our service actor as the handler
     IO(Http) ? Http.Bind(routeServiceActor, interface = "localhost", port = 8080)
 

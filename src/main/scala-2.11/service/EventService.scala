@@ -4,7 +4,7 @@ import akka.actor.Actor
 import akka.actor.Actor.Receive
 import dao.EventsDAO
 import entities.db.{User, MapEvent}
-import service.EventService.{ResponseEvent, AddEvent}
+import service.EventService.{GetEvents, ResponseEvent, AddEvent}
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -19,10 +19,14 @@ class EventService {
   def getUserEvents(user:User) = {
     eventsDAO.eventsByUserId(user.id.getOrElse(0))
   }
+  def getEventsAround = {
+    eventsDAO.allEvents()
+  }
 }
 
 object EventService{
   case class AddEvent(event:MapEvent,user:User)
+  case class GetEvents()
 
   case class ResponseEvent(event: MapEvent)
 
@@ -34,8 +38,15 @@ class EventServiceActor(eventService: EventService) extends Actor {
       val sended = sender()
       response.onSuccess{
         case result =>{
-          println("result !")
           sended ! ResponseEvent(result)
+        }
+      }
+    }
+    case GetEvents() => {
+      val sended = sender()
+      eventService.getEventsAround.onSuccess{
+        case result => {
+          sended ! result
         }
       }
     }
