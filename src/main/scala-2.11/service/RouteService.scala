@@ -43,9 +43,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef) extends Actor with 
     awaitResult(accountServiceRef ? IsAuthorized(session)).asInstanceOf[String]
   }
   override def sendAuthorize(session: String, clientId: String, token: String): String = {"authorize"}
-  override def sendGetEvents(session: String, someFilter: Int): String = {
-    s"events url $session : $someFilter"
-  }
+
 
 
   def receive = handleMessages orElse runRoute(myRoute)
@@ -58,6 +56,9 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef) extends Actor with 
   }
 
   //event service send
+  override def sendGetEvents(session: String, someFilter: Int): String = {
+    s"events url $session : $someFilter"
+  }
   override def sendAddEvent(event: MapEvent, user: User): Future[Any] = {
      _eventService match {
       case Some(service) => service ? EventService.AddEvent(event,user)
@@ -85,7 +86,7 @@ trait RouteService extends HttpService {
   //  def sendUnauthorize : String
 
   //event service send
-  def sendAddEvent(event:MapEvent,user:User) :Future[Any]
+  def sendAddEvent(event:MapEvent, user:User) :Future[Any]
   def sendGetEvents(session: String, someFilter: Int): String
 
   val auth = pathPrefix("auth") {
@@ -93,21 +94,9 @@ trait RouteService extends HttpService {
       jSession => {
         get {
           complete(sendIsAuthorized(jSession.content))
-        }
-      }
-    }
-  }
-
-  val events = pathPrefix("events") {
-    cookie("JSESSIONID") {
-      jSession => {
-        get {
-          parameters('filter.as[Int] ? 0) { filter =>
-            complete(sendGetEvents(jSession.content, filter))
-          }
         } ~
         post {
-          complete("POST")
+          complete
         }
       }
     }
