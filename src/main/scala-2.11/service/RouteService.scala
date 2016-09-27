@@ -47,7 +47,6 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
     eventsServiceRef ? EventService.GetEvents()
   }
 
-
   def receive = handleMessages orElse runRoute(myRoute)
 
   //это если актору надо принять наши сообщения
@@ -55,8 +54,6 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
     case AccountHello(msg) => println("hello from account : " + msg)
 
   }
-
-  //event service send
   override def sendAddEvent(event: MapEvent, user: User): Future[Any] = {
     eventsServiceRef ? EventService.AddEvent(event, user)
   }
@@ -87,26 +84,17 @@ trait RouteService extends HttpService with AccountResponse {
   def sendGetEvents(): Future[Any]
 
 
+
   val auth = pathPrefix("auth") {
     cookie("JSESSIONID") {
       jSession => {
         get {
           complete(sendIsAuthorized(jSession.content))
-        }
-      }
-    }
-  }
-
-  val events = pathPrefix("events") {
-    cookie("JSESSIONID") {
-      jSession => {
-        get {
-          parameters('filter.as[Int] ? 0) { filter =>
-            complete("gello")
-          }
         } ~
         post {
-          complete("POST")
+          parameters('clientId, 'token) {(clientId, token) =>
+            complete(sendAuthorize(jSession.content, clientId, token))
+          }
         }
       }
     }
@@ -162,7 +150,6 @@ trait RouteService extends HttpService with AccountResponse {
 
   val myRoute = {
     auth ~
-    events ~
     other ~
     event
   }
