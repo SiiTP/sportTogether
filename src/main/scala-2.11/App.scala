@@ -2,7 +2,7 @@ import akka.actor.{ActorSystem, Props}
 import akka.io.IO
 import akka.pattern.ask
 import akka.util.Timeout
-import entities.db.{DatabaseHelper}
+import entities.db.{DatabaseHelper, DatabaseExecutor}
 import response.MyResponse
 import service._
 import spray.can.Http
@@ -22,8 +22,8 @@ object App extends MyResponse {
 //
 //    println(User("a", 1, Some(1)).toJson.prettyPrint)
 //    println(responseSuccess[User](None).toJson.prettyPrint)
-    DatabaseHelper.config("mysqlDB")
-    val dbHelper = new DatabaseHelper()
+    DatabaseExecutor.config("mysqlDB")
+    val dbHelper = DatabaseHelper.getInstance
     dbHelper.init(App.getClass.getResource("application.conf").getPath)
 
     // we need an ActorSystem to host our application in

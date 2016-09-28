@@ -13,8 +13,8 @@ import scala.concurrent.duration.Duration
 /**
   * Created by ivan on 15.09.16.
   */
-class DatabaseHelper{
-  lazy private val db = DatabaseHelper.getInstance
+class DatabaseHelper private(){
+  lazy private val db = DatabaseExecutor.getInstance
   def init(configPath: String) = {
     println(configPath)
     val properties = new Properties()
@@ -26,18 +26,21 @@ class DatabaseHelper{
 
   }
   def create(): Unit ={
-
-    if(!isCreated){
-      Await.result(db.run(DBIO.seq(
-        (users.schema ++ events.schema ++ categories.schema).create
-      )), Duration.Inf)
-      println("DATABASE CREATED")
+    this.synchronized {
+      if(!isCreated){
+        Await.result(db.run(DBIO.seq(
+          (users.schema ++ events.schema ++ categories.schema).create
+        )), Duration.Inf)
+        println("DATABASE CREATED")
+      }
     }
   }
-  def isCreated = Await.result(db.run(MTable.getTables), Duration.Inf).nonEmpty
+  private def isCreated = Await.result(db.run(MTable.getTables), Duration.Inf).nonEmpty
   def recreate(): Unit ={
-    drop()
-    create()
+    this.synchronized {
+      drop()
+      create()
+    }
   }
   def clearTables = Await.result(db.run(
     DBIO.seq(
@@ -47,16 +50,23 @@ class DatabaseHelper{
     )), Duration.Inf)
 
   def drop(): Unit ={
-    if(isCreated){
-      Await.result(db.run(DBIO.seq(
-        (users.schema ++ events.schema ++ categories.schema).drop
-      )), Duration.Inf)
-      println("DATABASE DROPPED")
+    this.synchronized{
+      if(isCreated){
+  //      Await.result(db.run(sqlu"""SET foreign_key_checks = 0 """),Duration.Inf)
+        Await.result(db.run(DBIO.seq(
+          (users.schema ++ events.schema ++ categories.schema).drop
+        )), Duration.Inf)
+  //      Await.result(db.run(sqlu"""SET foreign_key_checks = 1 """),Duration.Inf)
+        println("DATABASE DROPPED")
+      }
     }
   }
 }
-
-object DatabaseHelper{
+object DatabaseHelper {
+  private lazy val dbHelper = new DatabaseHelper()
+  def getInstance = dbHelper
+}
+object DatabaseExecutor {
   lazy val db : Database = Database.forConfig(configPath, config)
   private var configPath: String = "mysqlDB"
   private var config = ConfigFactory.load()
@@ -65,7 +75,5 @@ object DatabaseHelper{
     if(configFile != null)
       config = ConfigFactory.parseFile(configFile)
   }
-  def getInstance = {
-    db
-  }
+  def getInstance = db
 }

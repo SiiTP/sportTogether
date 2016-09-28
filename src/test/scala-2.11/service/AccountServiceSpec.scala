@@ -14,7 +14,7 @@ import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 import akka.util.Timeout
 import dao.UserDAO
-import entities.db.{DatabaseHelper, EntitiesJsonProtocol, Roles, User}
+import entities.db._
 import org.specs2.execute.{AsResult, ResultExecution}
 
 import scala.concurrent.{Await, Future}
@@ -24,14 +24,15 @@ import scala.concurrent.{Await, Future}
   * Created by root on 28.09.16.
   */
 class AccountServiceSpec extends Specification with Specs2RouteTest with BeforeAfter with AccountResponse {
-  println("before")
   override implicit val system = ActorSystem("actor-system-test")
   implicit val timeout = Timeout(Duration.create(5, SECONDS))
 
-//  val configFile = new File(getClass.getResource("../application_test.conf").getPath)
-//  DatabaseHelper.config("mysqlDB-test", configFile)
-//  val dbHelper = new DatabaseHelper()
-//  dbHelper.init(configFile.getPath)
+  val configFile = new File(getClass.getResource("../application_test.conf").getPath)
+  DatabaseExecutor.config("mysqlDB-test", configFile)
+
+  val dbHelper = DatabaseHelper.getInstance
+  dbHelper.init(configFile.getPath)
+
   val userDAO = new UserDAO
 
   val accountService = new AccountService()
