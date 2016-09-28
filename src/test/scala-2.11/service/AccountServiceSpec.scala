@@ -7,7 +7,6 @@ import akka.actor.{ActorSystem, Props}
 import akka.pattern.AskableActorRef
 import org.specs2.mutable.{BeforeAfter, Specification}
 import response.AccountResponse
-import service.EventService.ResponseEvent
 import service.RouteServiceActor.{Authorize, IsAuthorized}
 import spray.testkit.Specs2RouteTest
 

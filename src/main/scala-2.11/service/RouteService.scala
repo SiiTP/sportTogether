@@ -1,14 +1,22 @@
 package service
 
-import akka.actor.FSM.Failure
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.AskableActorRef
 import akka.util.Timeout
 import entities.db.{EntitiesJsonProtocol, MapEvent, User}
 import response.{AccountResponse, MyResponse}
 import service.AccountService.AccountHello
-import service.EventService.ResponseEvent
 import service.RouteServiceActor._
+
+import akka.actor.{ActorRef, Actor}
+import akka.pattern.AskableActorRef
+import akka.util.Timeout
+import entities.db.{MapCategory, EntitiesJsonProtocol, MapEvent, User}
+import entities.db.EntitiesJsonProtocol._
+import response.AccountResponse
+import service.AccountService.AccountHello
+
+import service.RouteServiceActor.{InitEventService, IsAuthorized, RouteHello}
 import spray.routing._
 import spray.routing.directives.OnSuccessFutureMagnet
 
@@ -16,15 +24,19 @@ import scala.concurrent.duration._
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future, duration}
 
+import scala.concurrent.{ExecutionContext, Await, Future, duration}
+import spray.json._
+import spray.json.DefaultJsonProtocol._
+import EntitiesJsonProtocol.mapEventFormat
+import spray.httpx.SprayJsonSupport._
 import ExecutionContext.Implicits.global
 import scala.util
-import scala.util.Success
+import scala.util.{Failure,Success}
 
-class RouteServiceActor(_accountServiceRef: AskableActorRef) extends Actor with RouteService with AccountResponse {
+class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: AskableActorRef,_categoryService: AskableActorRef) extends Actor with RouteService {
   implicit lazy val timeout = Timeout(10.seconds)
   def actorRefFactory = context
   def accountServiceRef: AskableActorRef = _accountServiceRef
-  var _eventService: Option[AskableActorRef] = None
   def eventsServiceRef = _eventService
 
   override def sendHello = {
@@ -46,24 +58,24 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef) extends Actor with 
   }
 
 
+  override def sendGetEvents() = eventsServiceRef ? EventService.GetEvents()
   def receive = handleMessages orElse runRoute(myRoute)
 
   //это если актору надо принять наши сообщения
   def handleMessages: Receive = {
     case AccountHello(msg) => println("hello from account : " + msg)
 
-    case InitEventService(service) => _eventService = Some(service)
   }
+  override def sendAddEvent(event: MapEvent, user: User) = eventsServiceRef ? EventService.AddEvent(event, user)
+  override def sendGetUserEvents(id:Int) = eventsServiceRef ? EventService.GetUserEvents(id)
 
-  //event service send
-  override def sendGetEvents(session: String, someFilter: Int): String = {
-    s"events url $session : $someFilter"
-  }
-  override def sendAddEvent(event: MapEvent, user: User): Future[Any] = {
-     _eventService match {
-      case Some(service) => service ? EventService.AddEvent(event,user)
-    }
-  }
+  override def sendGetEvent(id: Int) = eventsServiceRef ? EventService.GetEvent(id)
+
+  override def sendCreateCategory(name: String): Future[Any] = _categoryService ? CategoryService.CreateCategory(name)
+
+  override def sendGetCategory(id: Int): Future[Any] = _categoryService ? CategoryService.GetCategory(id)
+
+  override def sendGetCategories(): Future[Any] = _categoryService ? CategoryService.GetCategories()
 }
 
 object RouteServiceActor {
@@ -75,19 +87,24 @@ object RouteServiceActor {
   case class GetAccount(session: String)
   case class CreateAccount(session: String, token: String, role: Int)
 
-  case class InitEventService(service : ActorRef)
+  case class InitEventService(service: ActorRef)
 }
 
-trait RouteService extends HttpService {
+trait RouteService extends HttpService with AccountResponse {
   def accountServiceRef: AskableActorRef
   def sendHello: String
   def sendIsAuthorized(session: String): Future[Any]
   def sendAuthorize(session: String, clientId: String, token: String): Future[Any]
   def sendUnauthorize(session: String): Future[Any]
 
-  //event service send
-  def sendAddEvent(event:MapEvent, user:User): Future[Any]
-  def sendGetEvents(session: String, someFilter: Int): String
+  def sendAddEvent(event:MapEvent,user:User): Future[Any]
+  def sendGetEvents(): Future[Any]
+  def sendGetUserEvents(id: Int): Future[Any]
+  def sendGetEvent(id: Int): Future[Any]
+
+  def sendCreateCategory(name: String): Future[Any]
+  def sendGetCategory(id: Int): Future[Any]
+  def sendGetCategories(): Future[Any]
 
   val auth = pathPrefix("auth") {
     cookie("JSESSIONID") {
@@ -115,27 +132,84 @@ trait RouteService extends HttpService {
       }
     }
   }
-  val event = pathPrefix("event"){
+  val user = pathPrefix("user") {
+    cookie("JSESSIONID") {
+      session =>
+        get {
+          onComplete(sendGetUserEvents(session.content.toInt)){
+            case Success(items) => complete(responseSuccess(Some(items.asInstanceOf[Seq[MapEvent]])).toJson.prettyPrint)
+            case Failure(t) => complete("failed " + t.getMessage)
+          }
+        }
+    }
+  }
+  val category = pathPrefix("category") {
     path(IntNumber){
-      id =>
+      id => {
         get{
           complete("get event with id" + id)
         }
-//        post{
-//          entity(as[MapEvent]){ event =>
-//            val future = sendAddEvent(event, User("fwefwef", entities.db.Roles.USER.getRoleId,Some(1)))
-//            onComplete(future){
-//              case Success(item) => {
-//                println("complete")
-//                complete(item.asInstanceOf[ResponseEvent].event)
-//              }
-//              case util.Failure(t) =>{
-//                println("fail?")
-//                complete("fail?")
-//              }
-//            }
-//          }
-//        }
+
+          onComplete(sendGetCategory(id)) {
+            case Success(result) =>
+              if(isError(result)){
+                complete(result.asInstanceOf[ResponseError].toJson.prettyPrint)
+              }
+              else{
+                complete(result.asInstanceOf[ResponseSuccess[MapCategory]].toJson.prettyPrint)
+              }
+            case Failure(t) => complete(t.getMessage)
+          }
+        }
+      }
+    } ~
+    get {
+      onComplete(sendGetCategories()) {
+        case Success(result) => {
+          complete(responseSuccess(Some(result.asInstanceOf[Seq[MapCategory]])).toJson.prettyPrint)
+        }
+        case Failure(t) => complete(t.getMessage)
+      }
+    } ~
+    post {
+      entity(as[MapCategory]) {
+        category =>
+          onComplete(sendCreateCategory(category.name)) {
+            case Success(result) => complete(responseSuccess(Some(result.asInstanceOf[MapCategory])).toJson.prettyPrint)
+          }
+      }
+    }
+
+  val event = pathPrefix("event") {
+    path(IntNumber){
+      id =>
+        get {//todo нужно получать юзера по сесии, чтобы другие юзеры не могли его получать
+          onComplete(sendGetEvent(id)) {
+            case Success(mapEvent) =>
+              complete(responseSuccess(Some(mapEvent.asInstanceOf[MapEvent])).toJson.prettyPrint)
+            case Failure(t) => complete(t.getMessage)
+          }
+        } ~
+        post {
+          entity(as[MapEvent]) { event =>
+            val future = sendAddEvent(event,User("fwefwef",entities.db.Roles.USER.getRoleId,Some(1)))
+            onComplete(future) {
+              case Success(item) =>
+                println("complete")
+                complete(item.asInstanceOf[MapEvent])
+              case Failure(t) => complete(t.getMessage)
+            }
+          }
+        }
+    } ~
+    pathEnd {
+      get {
+        onComplete(sendGetEvents()) {
+          case Success(items) =>
+            complete(responseSuccess(Some(items.asInstanceOf[Seq[MapEvent]])).toJson.prettyPrint)
+          case Failure(t) => complete(t.getMessage)
+        }
+      }
     }
   }
   val other = get {
@@ -155,6 +229,8 @@ trait RouteService extends HttpService {
   val myRoute = {
     auth ~
     other ~
-    event
+    event ~
+    user ~
+    category
   }
 }

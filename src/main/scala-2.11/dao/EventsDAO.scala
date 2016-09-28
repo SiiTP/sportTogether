@@ -40,4 +40,11 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int]{
   def eventsByUserId(id:Int): Future[Seq[MapEvent]] = {
     execute(table.filter(_.userId === id).result)
   }
+  def allEvents() = {
+    execute(table.result)
+  }
+  def getEventsByCategoryName(categoryName: String) = {
+    val query = table join Tables.categories on (_.catId === _.id)
+    execute(query.filter(_._2.name === categoryName).result)
+  }
 }
