@@ -200,20 +200,14 @@ trait RouteService extends HttpService with AccountResponse {
       id =>
         get {//todo нужно получать юзера по сесии, чтобы другие юзеры не могли его получать
           onComplete(sendGetEvent(id)) {
-            case Success(mapEvent) =>
-              complete(responseSuccess(Some(mapEvent.asInstanceOf[MapEvent])).toJson.prettyPrint)
+            case Success(result) =>
+              if (isError(result)) {
+                complete(result.asInstanceOf[ResponseError].toJson.prettyPrint)
+              }
+              else {
+                complete(result.asInstanceOf[ResponseSuccess[MapEvent]].toJson.prettyPrint)
+              }
             case Failure(t) => complete(t.getMessage)
-          }
-        } ~
-        post {
-          entity(as[MapEvent]) { event =>
-            val future = sendAddEvent(event,User("fwefwef",entities.db.Roles.USER.getRoleId,Some(1)))
-            onComplete(future) {
-              case Success(item) =>
-                println("complete")
-                complete(item.asInstanceOf[MapEvent])
-              case Failure(t) => complete(t.getMessage)
-            }
           }
         }
     } ~
@@ -223,6 +217,20 @@ trait RouteService extends HttpService with AccountResponse {
           case Success(items) =>
             complete(responseSuccess(Some(items.asInstanceOf[Seq[MapEvent]])).toJson.prettyPrint)
           case Failure(t) => complete(t.getMessage)
+        }
+      } ~
+      post {
+        entity(as[MapEvent]) { event =>
+          onComplete(sendAddEvent(event,User("fwefwef",entities.db.Roles.USER.getRoleId,Some(1)))) {
+            case Success(result) =>
+              if (isError(result)) {
+                complete(result.asInstanceOf[ResponseError].toJson.prettyPrint)
+              }
+              else {
+                complete(result.asInstanceOf[ResponseSuccess[MapEvent]].toJson.prettyPrint)
+              }
+            case Failure(t) => complete(t.getMessage)
+          }
         }
       }
     }

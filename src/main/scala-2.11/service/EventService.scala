@@ -4,6 +4,7 @@ import akka.actor.Actor
 import akka.actor.Actor.Receive
 import dao.EventsDAO
 import entities.db.{User, MapEvent}
+import response.EventResponse
 import service.EventService._
 
 import scala.concurrent.Future
@@ -37,12 +38,12 @@ object EventService{
 }
 class EventServiceActor(eventService: EventService) extends Actor {
   override def receive = {
-    case AddEvent(e,u) =>
-      val response = eventService.addSimpleEvent(e,u)
+    case AddEvent(event,user) =>
+      val response = eventService.addSimpleEvent(event,user)
       val sended = sender()
-      response.onSuccess {
-        case result =>
-          sended ! result
+      response.onComplete {
+        case Success(result) => sended ! EventResponse.responseSuccess(Some(result))
+        case Failure(t) => sended ! EventResponse.unexpectedError
       }
     case GetEvents() =>
       val sended = sender()
@@ -56,8 +57,9 @@ class EventServiceActor(eventService: EventService) extends Actor {
       }
     case GetEvent(id) =>
       val sended = sender()
-      eventService.getEvent(id).onSuccess {
-        case event => sended ! event
+      eventService.getEvent(id).onComplete {
+        case Success(event) => sended ! EventResponse.responseSuccess(Some(event))
+        case Failure(t) => sended ! EventResponse.notFoundError
       }
   }
 }
