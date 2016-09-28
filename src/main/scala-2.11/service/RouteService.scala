@@ -4,10 +4,11 @@ package service
 import akka.actor.{ActorRef, Actor}
 import akka.pattern.AskableActorRef
 import akka.util.Timeout
-import entities.db.{EntitiesJsonProtocol, MapEvent, User}
+import entities.db.{MapCategory, EntitiesJsonProtocol, MapEvent, User}
+import entities.db.EntitiesJsonProtocol._
 import response.AccountResponse
 import service.AccountService.AccountHello
-import service.EventService.ResponseEvent
+
 import service.RouteServiceActor.{InitEventService, IsAuthorized, RouteHello}
 import spray.routing._
 import spray.routing.directives.OnSuccessFutureMagnet
@@ -23,7 +24,7 @@ import ExecutionContext.Implicits.global
 import scala.util
 import scala.util.{Failure,Success}
 
-class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: AskableActorRef) extends Actor with RouteService {
+class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: AskableActorRef,_categoryService: AskableActorRef) extends Actor with RouteService {
   implicit lazy val timeout = Timeout(10.seconds)
   def actorRefFactory = context
   def accountServiceRef: AskableActorRef = _accountServiceRef
@@ -43,10 +44,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
     awaitResult(accountServiceRef ? IsAuthorized(session)).asInstanceOf[String]
   }
   override def sendAuthorize(session: String, clientId: String, token: String): String = {"authorize"}
-  override def sendGetEvents(): Future[Any] = {
-    eventsServiceRef ? EventService.GetEvents()
-  }
-
+  override def sendGetEvents() = eventsServiceRef ? EventService.GetEvents()
   def receive = handleMessages orElse runRoute(myRoute)
 
   //это если актору надо принять наши сообщения
@@ -54,10 +52,16 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
     case AccountHello(msg) => println("hello from account : " + msg)
 
   }
-  override def sendAddEvent(event: MapEvent, user: User): Future[Any] = {
-    eventsServiceRef ? EventService.AddEvent(event, user)
-  }
+  override def sendAddEvent(event: MapEvent, user: User) = eventsServiceRef ? EventService.AddEvent(event, user)
+  override def sendGetUserEvents(id:Int) = eventsServiceRef ? EventService.GetUserEvents(id)
 
+  override def sendGetEvent(id: Int) = eventsServiceRef ? EventService.GetEvent(id)
+
+  override def sendCreateCategory(name: String): Future[Any] = _categoryService ? CategoryService.CreateCategory(name)
+
+  override def sendGetCategory(id: Int): Future[Any] = _categoryService ? CategoryService.GetCategory(id)
+
+  override def sendGetCategories(): Future[Any] = _categoryService ? CategoryService.GetCategories()
 }
 
 object RouteServiceActor {
@@ -82,9 +86,12 @@ trait RouteService extends HttpService with AccountResponse {
   //event service send
   def sendAddEvent(event:MapEvent,user:User): Future[Any]
   def sendGetEvents(): Future[Any]
+  def sendGetUserEvents(id: Int): Future[Any]
+  def sendGetEvent(id: Int): Future[Any]
 
-
-
+  def sendCreateCategory(name: String): Future[Any]
+  def sendGetCategory(id: Int): Future[Any]
+  def sendGetCategories(): Future[Any]
   val auth = pathPrefix("auth") {
     cookie("JSESSIONID") {
       jSession => {
@@ -99,39 +106,79 @@ trait RouteService extends HttpService with AccountResponse {
       }
     }
   }
-  val event = pathPrefix("event"){
+  val user = pathPrefix("user") {
+    cookie("JSESSIONID") {
+      session =>
+        get {
+          onComplete(sendGetUserEvents(session.content.toInt)){
+            case Success(items) => complete(responseSuccess(Some(items.asInstanceOf[Seq[MapEvent]])).toJson.prettyPrint)
+            case Failure(t) => complete("failed " + t.getMessage)
+          }
+        }
+    }
+  }
+  val category = pathPrefix("category") {
+    path(IntNumber){
+      id => {
+        get{
+          onComplete(sendGetCategory(id)) {
+            case Success(result) =>
+              if(isError(result)){
+                complete(result.asInstanceOf[ResponseError].toJson.prettyPrint)
+              }
+              else{
+                complete(result.asInstanceOf[ResponseSuccess[MapCategory]].toJson.prettyPrint)
+              }
+            case Failure(t) => complete(t.getMessage)
+          }
+        }
+      }
+    } ~
+    get {
+      onComplete(sendGetCategories()) {
+        case Success(result) => {
+          complete(responseSuccess(Some(result.asInstanceOf[Seq[MapCategory]])).toJson.prettyPrint)
+        }
+        case Failure(t) => complete(t.getMessage)
+      }
+    } ~
+    post {
+      entity(as[MapCategory]) {
+        category =>
+          onComplete(sendCreateCategory(category.name)) {
+            case Success(result) => complete(responseSuccess(Some(result.asInstanceOf[MapCategory])).toJson.prettyPrint)
+          }
+      }
+    }
+  }
+  val event = pathPrefix("event") {
     path(IntNumber){
       id =>
-        get{
-          complete("get event with id" + id)
+        get {//todo нужно получать юзера по сесии, чтобы другие юзеры не могли его получать
+          onComplete(sendGetEvent(id)) {
+            case Success(mapEvent) =>
+              complete(responseSuccess(Some(mapEvent.asInstanceOf[MapEvent])).toJson.prettyPrint)
+            case Failure(t) => complete(t.getMessage)
+          }
         } ~
-        post{
-          entity(as[MapEvent]){ event =>
+        post {
+          entity(as[MapEvent]) { event =>
             val future = sendAddEvent(event,User("fwefwef",entities.db.Roles.USER.getRoleId,Some(1)))
-            onComplete(future){
-              case Success(item) => {
+            onComplete(future) {
+              case Success(item) =>
                 println("complete")
-                complete(item.asInstanceOf[ResponseEvent].event)
-              }
-              case util.Failure(t) =>{
-                println("fail?")
-                complete("fail?")
-              }
+                complete(item.asInstanceOf[MapEvent])
+              case Failure(t) => complete(t.getMessage)
             }
           }
         }
     } ~
     pathEnd {
       get {
-        onComplete(sendGetEvents()){
-          case Success(items) => {
-            println("got events")
+        onComplete(sendGetEvents()) {
+          case Success(items) =>
             complete(responseSuccess(Some(items.asInstanceOf[Seq[MapEvent]])).toJson.prettyPrint)
-          }
-          case Failure(t) => {
-            println("failed")
-            complete("failed")
-          }
+          case Failure(t) => complete(t.getMessage)
         }
       }
     }
@@ -151,6 +198,8 @@ trait RouteService extends HttpService with AccountResponse {
   val myRoute = {
     auth ~
     other ~
-    event
+    event ~
+    user ~
+    category
   }
 }

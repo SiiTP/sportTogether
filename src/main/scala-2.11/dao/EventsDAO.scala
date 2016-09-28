@@ -43,4 +43,8 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int]{
   def allEvents() = {
     execute(table.result)
   }
+  def getEventsByCategoryName(categoryName: String) = {
+    val query = table join Tables.categories on (_.catId === _.id)
+    execute(query.filter(_._2.name === categoryName).result)
+  }
 }

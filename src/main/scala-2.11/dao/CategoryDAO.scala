@@ -23,5 +23,6 @@ class CategoryDAO extends DatabaseDAO[MapCategory,Int]{
   override def get(categoryId: Int): Future[MapCategory] = execute(table.filter(_.id === categoryId).result.head)
 
   override def delete(r: MapCategory): Future[Int] = execute(table.filter(_.id===r.id).delete)
-
+  def getCategoryByName(name: String) = execute(table.filter(_.name === name).result)
+  def getCategories = execute(table.result)
 }
