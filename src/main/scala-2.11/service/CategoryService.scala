@@ -28,7 +28,8 @@ class CategoryServiceActor(categoryService: CategoryService) extends Actor{
     case CreateCategory(name) =>
       val sended = sender()
       categoryService.createCategory(name).onComplete {
-        case Success(category) => sended ! category
+        case Success(category) => sended ! CategoryResponse.responseSuccess(Some(category))
+        case Failure(t) => sended ! CategoryResponse.alreadyExistError
       }
     case GetCategories() =>
       val sended = sender()

@@ -32,7 +32,6 @@ class AccountServiceSpec extends Specification with Specs2RouteTest with BeforeA
 
   val dbHelper = DatabaseHelper.getInstance
   dbHelper.init(configFile.getPath)
-
   val userDAO = new UserDAO
 
   val accountService = new AccountService()
@@ -60,7 +59,6 @@ class AccountServiceSpec extends Specification with Specs2RouteTest with BeforeA
       import EntitiesJsonProtocol._
 
       userDAO.create(User("clientid", Roles.USER.getRoleId))
-      println("azaza")
       val future: Future[String] = (accountServiceActor ? Authorize("1", "token", "clientid")).asInstanceOf[Future[String]]
       future.onComplete({
         case Success(answer) =>
@@ -75,7 +73,6 @@ class AccountServiceSpec extends Specification with Specs2RouteTest with BeforeA
 
       })
       Await.result(future, timeout.duration)
-      println("after")
       1 + 1 shouldEqual 2
     }
   }
@@ -84,6 +81,7 @@ class AccountServiceSpec extends Specification with Specs2RouteTest with BeforeA
   }
 
   override def after: Any = {
-//    dbHelper.clearTables
+    println("clear tables")
+    dbHelper.clearTables
   }
 }
