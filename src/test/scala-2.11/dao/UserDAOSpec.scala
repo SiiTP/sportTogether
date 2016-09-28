@@ -12,9 +12,6 @@ import scala.concurrent.{Await, Awaitable, Future}
 import scala.concurrent.duration.Duration
 import scala.io.Source
 
-/**
-  * Created by root on 21.09.16.
-  */
 class UserDAOSpec extends FlatSpec with MockFactory with Matchers with BeforeAndAfter{
 
   val configFile = new File(getClass.getResource("../application_test.conf").getPath)

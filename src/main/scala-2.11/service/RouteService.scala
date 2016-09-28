@@ -8,16 +8,13 @@ import entities.db.{EntitiesJsonProtocol, MapEvent, User}
 import response.{AccountResponse, MyResponse}
 import service.AccountService.AccountHello
 import service.EventService.ResponseEvent
-import service.RouteServiceActor.{InitEventService, IsAuthorized, RouteHello}
+import service.RouteServiceActor._
 import spray.routing._
 import spray.routing.directives.OnSuccessFutureMagnet
 
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future, duration}
-import spray.json._
-import EntitiesJsonProtocol.mapEventFormat
-import spray.httpx.SprayJsonSupport._
 
 import ExecutionContext.Implicits.global
 import scala.util
@@ -40,7 +37,14 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef) extends Actor with 
   override def sendIsAuthorized(session: String) = {
     accountServiceRef ? IsAuthorized(session)
   }
-  override def sendAuthorize(session: String, clientId: String, token: String): String = {"authorize"}
+  override def sendAuthorize(session: String, clientId: String, token: String): Future[Any] = {
+    accountServiceRef ? Authorize(session, clientId, token)
+  }
+
+  override def sendUnauthorize(session: String): Future[Any] = {
+    accountServiceRef ? Unauthorize(session)
+  }
+
 
   def receive = handleMessages orElse runRoute(myRoute)
 
@@ -78,11 +82,11 @@ trait RouteService extends HttpService {
   def accountServiceRef: AskableActorRef
   def sendHello: String
   def sendIsAuthorized(session: String): Future[Any]
-  def sendAuthorize(session: String, clientId: String, token: String): String
-  //  def sendUnauthorize : String
+  def sendAuthorize(session: String, clientId: String, token: String): Future[Any]
+  def sendUnauthorize(session: String): Future[Any]
 
   //event service send
-  def sendAddEvent(event:MapEvent, user:User) :Future[Any]
+  def sendAddEvent(event:MapEvent, user:User): Future[Any]
   def sendGetEvents(session: String, someFilter: Int): String
 
   val auth = pathPrefix("auth") {
@@ -95,12 +99,17 @@ trait RouteService extends HttpService {
           }
         } ~
         post {
-          complete("post")
           parameters('clientId, 'token) {(clientId, token) =>
-            onComplete(sendIsAuthorized(jSession.content)) {
+            onComplete(sendAuthorize(jSession.content, clientId, token)) {
               case Success(item) => complete(item.asInstanceOf[String])
               case util.Failure(t) => complete("fail")
             }
+          }
+        } ~
+        delete {
+          onComplete(sendUnauthorize(jSession.content)) {
+            case Success(item) => complete(item.asInstanceOf[String])
+            case util.Failure(t) => complete("fail")
           }
         }
       }
@@ -111,22 +120,22 @@ trait RouteService extends HttpService {
       id =>
         get{
           complete("get event with id" + id)
-        }~
-        post{
-          entity(as[MapEvent]){ event =>
-            val future = sendAddEvent(event, User("fwefwef", entities.db.Roles.USER.getRoleId,Some(1)))
-            onComplete(future){
-              case Success(item) => {
-                println("complete")
-                complete(item.asInstanceOf[ResponseEvent].event)
-              }
-              case util.Failure(t) =>{
-                println("fail?")
-                complete("fail?")
-              }
-            }
-          }
         }
+//        post{
+//          entity(as[MapEvent]){ event =>
+//            val future = sendAddEvent(event, User("fwefwef", entities.db.Roles.USER.getRoleId,Some(1)))
+//            onComplete(future){
+//              case Success(item) => {
+//                println("complete")
+//                complete(item.asInstanceOf[ResponseEvent].event)
+//              }
+//              case util.Failure(t) =>{
+//                println("fail?")
+//                complete("fail?")
+//              }
+//            }
+//          }
+//        }
     }
   }
   val other = get {
@@ -140,6 +149,8 @@ trait RouteService extends HttpService {
         }
     }
   }
+
+  def getRoute = myRoute;
 
   val myRoute = {
     auth ~

@@ -2,7 +2,7 @@ import akka.actor.{ActorSystem, Props}
 import akka.io.IO
 import akka.pattern.ask
 import akka.util.Timeout
-import entities.db.{DatabaseHelper, EntitiesJsonProtocol, User}
+import entities.db.{DatabaseHelper}
 import response.MyResponse
 import service._
 import spray.can.Http

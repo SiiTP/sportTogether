@@ -22,8 +22,7 @@ trait MyResponse extends DefaultJsonProtocol {
 
   def responseSuccess[T](data: Option[T]) = ResponseSuccess[T](MyResponse.CODE_SUCCESS, "Success!", data)
   def responseError(code: Int, message: String) = ResponseError(code, message)
-
-
+  def responseNotSuccess() = responseError(MyResponse.CODE_NOT_SUCCESS, "Not success")
 }
 
 //object ResponseJsonProtocol extends DefaultJsonProtocol with MyResponse {
