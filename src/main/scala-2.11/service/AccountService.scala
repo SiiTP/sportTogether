@@ -34,18 +34,12 @@ class AccountServiceActor(accountService: AccountService) extends Actor with Acc
     case Authorize(session, token, clientId) =>
       val s = sender
       val future: Future[Int] = accountService.authorize(session, token, clientId)
+
       future.onComplete {
-        case Success(AccountResponse.CODE_AUTH_ALREADY) => sender ! responseAlreadyAuthorized.toJson.prettyPrint
-        case Success(MyResponse.CODE_SUCCESS)           => {
-          println("authorize success!")
-          s ! responseSuccess[User](None).toJson.prettyPrint
-        }
-        case Success(MyResponse.CODE_NOT_SUCCESS)       =>
-          println("authorize not success!")
-          s ! responseNotSuccess().toJson.prettyPrint
-        case Success(_)       =>
-          println("authorize other!")
-          s ! responseNotSuccess().toJson.prettyPrint
+        case Success(AccountResponse.CODE_AUTH_ALREADY) => s ! responseAlreadyAuthorized.toJson.prettyPrint
+        case Success(MyResponse.CODE_SUCCESS)           => s ! responseSuccess[User](None).toJson.prettyPrint
+        case Success(MyResponse.CODE_NOT_SUCCESS)       => s ! responseNotSuccess().toJson.prettyPrint
+        case Success(_)                                 => s ! responseNotSuccess().toJson.prettyPrint
         case Failure(e) =>
           println("failure")
           s ! responseNotSuccess().toJson.prettyPrint
@@ -84,17 +78,13 @@ class AccountService {
   def authorize(session: String, token: String, clientId: String) : Future[Int] = {
     val authorized: Option[User] = isAuthorized(session)
     authorized match {
-      case Some(user) => Future {
-         AccountResponse.CODE_AUTH_ALREADY
-      }
+      case Some(user) => return Future.successful(AccountResponse.CODE_AUTH_ALREADY)
       case None =>
     }
-
     val userFuture: Future[User] = userDAO.getByClientId(clientId)
     userFuture.flatMap {
       case user =>
         _authAccounts.put(session, user.copy())
-        println(user.toJson.prettyPrint)
         Future.successful(MyResponse.CODE_SUCCESS)
     }
 
