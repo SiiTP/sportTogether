@@ -17,6 +17,7 @@ import response.AccountResponse
 import service.AccountService.AccountHello
 
 import service.RouteServiceActor.{InitEventService, IsAuthorized, RouteHello}
+import spray.http.HttpCookie
 import spray.routing._
 import spray.routing.directives.OnSuccessFutureMagnet
 
@@ -116,7 +117,6 @@ trait RouteService extends HttpService with AccountResponse {
   def sendGetCategories(): Future[Any]
 
   def getStringResponse(data: Any) = data.asInstanceOf[String]
-
   val auth = pathPrefix("auth") {
     cookie("JSESSIONID") {
       jSession => {
@@ -130,7 +130,7 @@ trait RouteService extends HttpService with AccountResponse {
             parameters('clientId, 'token) { (clientId, token) =>
               onComplete(sendAuthorize(jSession.content, clientId, token)) {
                 case Success(item) => complete(item.asInstanceOf[String])
-                case util.Failure(t) => complete("fail")
+                case util.Failure(t) => complete("fail2")
               }
             }
           } ~
@@ -143,18 +143,7 @@ trait RouteService extends HttpService with AccountResponse {
       }
     }
   }
-  val user = pathPrefix("user") {
-    cookie("JSESSIONID") {
-      session =>
-        get {
-          onComplete(sendGetUserEvents(session.content.toInt)) {
-            case Success(items) => complete(responseSuccess(Some(items.asInstanceOf[Seq[MapEvent]])).toJson.prettyPrint)
-            case Failure(t) => complete("failed " + t.getMessage)
-          }
-        }
-    }
-  }
-  val category = pathPrefix("category") {
+  def category(user: User) = pathPrefix("category") {
     path(IntNumber) {
       id => {
         get {
@@ -181,10 +170,10 @@ trait RouteService extends HttpService with AccountResponse {
     }
   }
 
-  val event = pathPrefix("event") {
+  def event(user: User) = pathPrefix("event") {
     path(IntNumber){
       id =>
-        get {//todo нужно получать юзера по сесии, чтобы другие юзеры не могли его получать
+        get {
           onComplete(sendGetEvent(id)) {
             case Success(result) => complete(getStringResponse(result))
             case Failure(t) => complete(t.getMessage)
@@ -206,6 +195,14 @@ trait RouteService extends HttpService with AccountResponse {
           }
         }
       }
+    } ~
+    pathPrefix("user") {
+      get {
+        onComplete(sendGetUserEvents(user.id.get)) {
+          case Success(items) => complete(items.asInstanceOf[String])
+          case Failure(t) => complete("failed " + t.getMessage)
+        }
+      }
     }
   }
   val other = get {
@@ -221,11 +218,24 @@ trait RouteService extends HttpService with AccountResponse {
   }
 
   def getRoute = myRoute
+  def sessionRequiredRoutes(cookie: HttpCookie) = {
+    onSuccess(sendIsAuthorized(cookie.content)){
+      case result =>
+        JsonParser(result.asInstanceOf[String]).convertTo[ResponseSuccess[User]].data match {
+          case Some(u) =>
+            event(u) ~
+            category(u)
+          case None => complete("fail33")
+        }
+    }
+  }
+  val authRoutes = cookie("JSESSIONID") { cookie =>
+      sessionRequiredRoutes(cookie)
+  }
+
   val myRoute = {
     auth ~
     other ~
-    event ~
-    user ~
-    category
+    authRoutes
   }
 }
