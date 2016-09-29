@@ -48,12 +48,13 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
     }
   }
   override def sendIsAuthorized(session: String) = {
+    println(session)
     accountServiceRef ? IsAuthorized(session)
   }
   override def sendAuthorize(session: String, clientId: String, token: String): Future[Any] = {
+    println(session)
     accountServiceRef ? Authorize(session, clientId, token)
   }
-
   override def sendUnauthorize(session: String): Future[Any] = {
     accountServiceRef ? Unauthorize(session)
   }
@@ -232,7 +233,6 @@ trait RouteService extends HttpService with AccountResponse {
   val authRoutes = cookie("JSESSIONID") { cookie =>
       sessionRequiredRoutes(cookie)
   }
-
   val myRoute = {
     auth ~
     other ~

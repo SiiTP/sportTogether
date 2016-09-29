@@ -28,7 +28,7 @@ object EntitiesJsonProtocol extends DefaultJsonProtocol {
 
 class MapCategories(tag:Tag) extends Table[MapCategory](tag,"category"){
   def id = column[Int]("cat_id",O.PrimaryKey,O.AutoInc)
-  def name = column[String]("name",O.SqlType("VARCHAR(3072)"))
+  def name = column[String]("name",O.SqlType("VARCHAR(127)"))
   def * = (name,id.?) <> (MapCategory.tupled,MapCategory.unapply)
   def unqiueIdx = index("idx_uniq_name",name,unique = true)
 }
