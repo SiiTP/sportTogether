@@ -93,19 +93,30 @@ object RouteServiceActor {
 
 trait RouteService extends HttpService with AccountResponse {
   def accountServiceRef: AskableActorRef
+
   def sendHello: String
+
   def sendIsAuthorized(session: String): Future[Any]
+
   def sendAuthorize(session: String, clientId: String, token: String): Future[Any]
+
   def sendUnauthorize(session: String): Future[Any]
 
-  def sendAddEvent(event:MapEvent,user:User): Future[Any]
+  def sendAddEvent(event: MapEvent, user: User): Future[Any]
+
   def sendGetEvents(): Future[Any]
+
   def sendGetUserEvents(id: Int): Future[Any]
+
   def sendGetEvent(id: Int): Future[Any]
 
   def sendCreateCategory(name: String): Future[Any]
+
   def sendGetCategory(id: Int): Future[Any]
+
   def sendGetCategories(): Future[Any]
+
+  def getStringResponse(data: Any) = data.asInstanceOf[String]
 
   val auth = pathPrefix("auth") {
     cookie("JSESSIONID") {
@@ -116,20 +127,20 @@ trait RouteService extends HttpService with AccountResponse {
             case util.Failure(t) => complete("fail")
           }
         } ~
-        post {
-          parameters('clientId, 'token) {(clientId, token) =>
-            onComplete(sendAuthorize(jSession.content, clientId, token)) {
+          post {
+            parameters('clientId, 'token) { (clientId, token) =>
+              onComplete(sendAuthorize(jSession.content, clientId, token)) {
+                case Success(item) => complete(item.asInstanceOf[String])
+                case util.Failure(t) => complete("fail")
+              }
+            }
+          } ~
+          delete {
+            onComplete(sendUnauthorize(jSession.content)) {
               case Success(item) => complete(item.asInstanceOf[String])
               case util.Failure(t) => complete("fail")
             }
           }
-        } ~
-        delete {
-          onComplete(sendUnauthorize(jSession.content)) {
-            case Success(item) => complete(item.asInstanceOf[String])
-            case util.Failure(t) => complete("fail")
-          }
-        }
       }
     }
   }
@@ -137,7 +148,7 @@ trait RouteService extends HttpService with AccountResponse {
     cookie("JSESSIONID") {
       session =>
         get {
-          onComplete(sendGetUserEvents(session.content.toInt)){
+          onComplete(sendGetUserEvents(session.content.toInt)) {
             case Success(items) => complete(responseSuccess(Some(items.asInstanceOf[Seq[MapEvent]])).toJson.prettyPrint)
             case Failure(t) => complete("failed " + t.getMessage)
           }
@@ -145,20 +156,11 @@ trait RouteService extends HttpService with AccountResponse {
     }
   }
   val category = pathPrefix("category") {
-    path(IntNumber){
+    path(IntNumber) {
       id => {
-        get{
-          complete("get event with id" + id)
-        }
-
+        get {
           onComplete(sendGetCategory(id)) {
-            case Success(result) =>
-              if(isError(result)){
-                complete(result.asInstanceOf[ResponseError].toJson.prettyPrint)
-              }
-              else{
-                complete(result.asInstanceOf[ResponseSuccess[MapCategory]].toJson.prettyPrint)
-              }
+            case Success(result) => complete(getStringResponse(result))
             case Failure(t) => complete(t.getMessage)
           }
         }
@@ -166,9 +168,7 @@ trait RouteService extends HttpService with AccountResponse {
     } ~
     get {
       onComplete(sendGetCategories()) {
-        case Success(result) => {
-          complete(responseSuccess(Some(result.asInstanceOf[Seq[MapCategory]])).toJson.prettyPrint)
-        }
+        case Success(result) => complete(getStringResponse(result))
         case Failure(t) => complete(t.getMessage)
       }
     } ~
@@ -176,39 +176,35 @@ trait RouteService extends HttpService with AccountResponse {
       entity(as[MapCategory]) {
         category =>
           onComplete(sendCreateCategory(category.name)) {
-            case Success(result) => complete(responseSuccess(Some(result.asInstanceOf[MapCategory])).toJson.prettyPrint)
+            case Success(result) => complete(getStringResponse(result))
           }
       }
     }
+  }
 
   val event = pathPrefix("event") {
     path(IntNumber){
       id =>
         get {//todo нужно получать юзера по сесии, чтобы другие юзеры не могли его получать
           onComplete(sendGetEvent(id)) {
-            case Success(mapEvent) =>
-              complete(responseSuccess(Some(mapEvent.asInstanceOf[MapEvent])).toJson.prettyPrint)
+            case Success(result) => complete(getStringResponse(result))
             case Failure(t) => complete(t.getMessage)
-          }
-        } ~
-        post {
-          entity(as[MapEvent]) { event =>
-            val future = sendAddEvent(event,User("fwefwef",entities.db.Roles.USER.getRoleId,Some(1)))
-            onComplete(future) {
-              case Success(item) =>
-                println("complete")
-                complete(item.asInstanceOf[MapEvent])
-              case Failure(t) => complete(t.getMessage)
-            }
           }
         }
     } ~
     pathEnd {
       get {
         onComplete(sendGetEvents()) {
-          case Success(items) =>
-            complete(responseSuccess(Some(items.asInstanceOf[Seq[MapEvent]])).toJson.prettyPrint)
+          case Success(items) => complete(getStringResponse(items))
           case Failure(t) => complete(t.getMessage)
+        }
+      } ~
+      post {
+        entity(as[MapEvent]) { event =>
+          onComplete(sendAddEvent(event,User("fwefwef",entities.db.Roles.USER.getRoleId,Some(1)))) {
+            case Success(result) => complete(getStringResponse(result))
+            case Failure(t) => complete(t.getMessage)
+          }
         }
       }
     }

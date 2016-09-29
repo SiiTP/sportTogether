@@ -2,7 +2,7 @@ import akka.actor.{ActorSystem, Props}
 import akka.io.IO
 import akka.pattern.ask
 import akka.util.Timeout
-import entities.db.{DatabaseHelper}
+import entities.db.{DatabaseHelper, DatabaseExecutor}
 import response.MyResponse
 import service._
 import spray.can.Http
@@ -22,8 +22,8 @@ object App extends MyResponse {
 //
 //    println(User("a", 1, Some(1)).toJson.prettyPrint)
 //    println(responseSuccess[User](None).toJson.prettyPrint)
-    DatabaseHelper.config("mysqlDB")
-    val dbHelper = new DatabaseHelper()
+    DatabaseExecutor.config("mysqlDB")
+    val dbHelper = DatabaseHelper.getInstance
     dbHelper.init(App.getClass.getResource("application.conf").getPath)
 
     // we need an ActorSystem to host our application in
@@ -42,7 +42,7 @@ object App extends MyResponse {
     val routeServiceActor = system.actorOf(Props(classOf[RouteServiceActor], accountServiceActor,eventServiceActor,categoryServiceActor), "routeService")
 
     // start a new HTTP server on port 8080 with our service actor as the handler
-    IO(Http) ? Http.Bind(routeServiceActor, interface = "localhost", port = 8099)
+    IO(Http) ? Http.Bind(routeServiceActor, interface = "localhost", port = 8080)
 
   }
 }

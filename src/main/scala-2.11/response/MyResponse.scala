@@ -11,6 +11,7 @@ import spray.json.{DefaultJsonProtocol, JsObject, JsValue, JsonFormat}
 object MyResponse {
   val CODE_SUCCESS = 0
   val CODE_NOT_SUCCESS = 1
+  val CODE_UNEXPECTED = 2
 }
 
 trait MyResponse extends DefaultJsonProtocol {
@@ -23,7 +24,8 @@ trait MyResponse extends DefaultJsonProtocol {
   def responseSuccess[T](data: Option[T]) = ResponseSuccess[T](MyResponse.CODE_SUCCESS, "Success!", data)
   def responseError(code: Int, message: String) = ResponseError(code, message)
   def responseNotSuccess() = responseError(MyResponse.CODE_NOT_SUCCESS, "Not success")
-  def isError(data: Any) ={
+  def unexpectedError = responseError(MyResponse.CODE_UNEXPECTED, "something went wrong")
+  def isError(data: Any) = {
     data.isInstanceOf[ResponseError]
   }
 

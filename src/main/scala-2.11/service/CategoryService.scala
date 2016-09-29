@@ -7,6 +7,8 @@ import response.CategoryResponse
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
+import response.MyResponse._
+import entities.db.EntitiesJsonProtocol._
 /**
   * Created by ivan on 27.09.16.
   */
@@ -28,18 +30,20 @@ class CategoryServiceActor(categoryService: CategoryService) extends Actor{
     case CreateCategory(name) =>
       val sended = sender()
       categoryService.createCategory(name).onComplete {
-        case Success(category) => sended ! category
+        case Success(category) => sended ! CategoryResponse.responseSuccess(Some(category)).toJson.prettyPrint
+        case Failure(t) => sended ! CategoryResponse.alreadyExistError.toJson.prettyPrint
       }
     case GetCategories() =>
       val sended = sender()
       categoryService.getAllCategories.onComplete {
-        case Success(cateogries) => sended ! cateogries
+        case Success(cateogries) => sended ! CategoryResponse.responseSuccess(Some(cateogries)).toJson.prettyPrint
+        case Failure(t) => sended ! CategoryResponse.unexpectedError.toJson.prettyPrint
       }
     case GetCategory(id) =>
       val sended = sender()
       categoryService.getCategoryById(id).onComplete {
-        case Success(category) => sended ! CategoryResponse.responseSuccess(Some(category))
-        case Failure(t) => sended ! CategoryResponse.notFoundError
+        case Success(category) => sended ! CategoryResponse.responseSuccess(Some(category)).toJson.prettyPrint
+        case Failure(t) => sended ! CategoryResponse.notFoundError.toJson.prettyPrint
       }
   }
 }

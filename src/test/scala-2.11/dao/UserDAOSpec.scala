@@ -4,7 +4,7 @@ import java.io.File
 import java.net.URL
 import java.util.concurrent.TimeUnit
 
-import entities.db.{DatabaseHelper, Roles, User}
+import entities.db.{DatabaseHelper, DatabaseExecutor, Roles, User}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 
@@ -15,8 +15,8 @@ import scala.io.Source
 class UserDAOSpec extends FlatSpec with MockFactory with Matchers with BeforeAndAfter{
 
   val configFile = new File(getClass.getResource("../application_test.conf").getPath)
-  DatabaseHelper.config("mysqlDB-test", configFile)
-  val dbHelper = new DatabaseHelper()
+  DatabaseExecutor.config("mysqlDB-test", configFile)
+  val dbHelper = DatabaseHelper.getInstance
   dbHelper.init(configFile.getPath)
   val userDAO = new UserDAO
 

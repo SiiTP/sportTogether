@@ -13,10 +13,14 @@ import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 import akka.util.Timeout
 import dao.UserDAO
+
 import entities.db.{DatabaseHelper, EntitiesJsonProtocol, Roles, User}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
+
+import entities.db._
+
 import org.specs2.execute.{AsResult, ResultExecution}
 
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -25,6 +29,7 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 /**
   * Created by root on 28.09.16.
   */
+
 class AccountServiceSpec extends FlatSpec with Matchers with BeforeAndAfter with AccountResponse with ScalaFutures {
   println("before")
   implicit val system = ActorSystem("actor-system-test")
@@ -33,8 +38,9 @@ class AccountServiceSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
 
   val configFile = new File(getClass.getResource("../application_test.conf").getPath)
-  DatabaseHelper.config("mysqlDB-test", configFile)
-  val dbHelper = new DatabaseHelper()
+  DatabaseExecutor.config("mysqlDB-test", configFile)
+
+  val dbHelper = DatabaseHelper.getInstance
   dbHelper.init(configFile.getPath)
   val userDAO = new UserDAO
 

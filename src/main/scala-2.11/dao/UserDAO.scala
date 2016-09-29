@@ -1,5 +1,5 @@
 package dao
-import entities.db.{DatabaseHelper, Tables, User}
+import entities.db.{DatabaseExecutor, Tables, User}
 import slick.driver.MySQLDriver.api._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
