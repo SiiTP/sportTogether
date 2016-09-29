@@ -10,7 +10,8 @@ import service.EventService._
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
-
+import response.MyResponse._
+import entities.db.EntitiesJsonProtocol._
 /**
   * Created by ivan on 25.09.16.
   */
@@ -42,24 +43,24 @@ class EventServiceActor(eventService: EventService) extends Actor {
       val response = eventService.addSimpleEvent(event,user)
       val sended = sender()
       response.onComplete {
-        case Success(result) => sended ! EventResponse.responseSuccess(Some(result))
-        case Failure(t) => sended ! EventResponse.unexpectedError
+        case Success(result) => sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
+        case Failure(t) => sended ! EventResponse.unexpectedError.toJson.prettyPrint
       }
     case GetEvents() =>
       val sended = sender()
       eventService.getEventsAround.onSuccess {
-        case result => sended ! result
+        case result => sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
       }
     case GetUserEvents(id) =>
       val sended = sender()
       eventService.getUserEvents(id).onSuccess {
-        case eventsSeq => sended ! eventsSeq
+        case eventsSeq => sended ! EventResponse.responseSuccess(Some(eventsSeq)).toJson.prettyPrint
       }
     case GetEvent(id) =>
       val sended = sender()
       eventService.getEvent(id).onComplete {
-        case Success(event) => sended ! EventResponse.responseSuccess(Some(event))
-        case Failure(t) => sended ! EventResponse.notFoundError
+        case Success(event) => sended ! EventResponse.responseSuccess(Some(event)).toJson.prettyPrint
+        case Failure(t) => sended ! EventResponse.notFoundError.toJson.prettyPrint
       }
   }
 }

@@ -115,6 +115,8 @@ trait RouteService extends HttpService with AccountResponse {
 
   def sendGetCategories(): Future[Any]
 
+  def getStringResponse(data: Any) = data.asInstanceOf[String]
+
   val auth = pathPrefix("auth") {
     cookie("JSESSIONID") {
       jSession => {
@@ -157,13 +159,7 @@ trait RouteService extends HttpService with AccountResponse {
       id => {
         get {
           onComplete(sendGetCategory(id)) {
-            case Success(result) =>
-              if (isError(result)) {
-                complete(result.asInstanceOf[ResponseError].toJson.prettyPrint)
-              }
-              else {
-                complete(result.asInstanceOf[ResponseSuccess[MapCategory]].toJson.prettyPrint)
-              }
+            case Success(result) => complete(getStringResponse(result))
             case Failure(t) => complete(t.getMessage)
           }
         }
@@ -171,9 +167,7 @@ trait RouteService extends HttpService with AccountResponse {
     } ~
     get {
       onComplete(sendGetCategories()) {
-        case Success(result) => {
-          complete(responseSuccess(Some(result.asInstanceOf[Seq[MapCategory]])).toJson.prettyPrint)
-        }
+        case Success(result) => complete(getStringResponse(result))
         case Failure(t) => complete(t.getMessage)
       }
     } ~
@@ -181,15 +175,7 @@ trait RouteService extends HttpService with AccountResponse {
       entity(as[MapCategory]) {
         category =>
           onComplete(sendCreateCategory(category.name)) {
-//            case Success(result) => complete(responseSuccess(Some(result.asInstanceOf[MapCategory])).toJson.prettyPrint)
-            case Success(result) => {
-              if (isError(result)) {
-                complete(result.asInstanceOf[ResponseError].toJson.prettyPrint)
-              }
-              else {
-                complete(result.asInstanceOf[ResponseSuccess[MapCategory]].toJson.prettyPrint)
-              }
-            }
+            case Success(result) => complete(getStringResponse(result))
           }
       }
     }
@@ -200,13 +186,7 @@ trait RouteService extends HttpService with AccountResponse {
       id =>
         get {//todo нужно получать юзера по сесии, чтобы другие юзеры не могли его получать
           onComplete(sendGetEvent(id)) {
-            case Success(result) =>
-              if (isError(result)) {
-                complete(result.asInstanceOf[ResponseError].toJson.prettyPrint)
-              }
-              else {
-                complete(result.asInstanceOf[ResponseSuccess[MapEvent]].toJson.prettyPrint)
-              }
+            case Success(result) => complete(getStringResponse(result))
             case Failure(t) => complete(t.getMessage)
           }
         }
@@ -214,21 +194,14 @@ trait RouteService extends HttpService with AccountResponse {
     pathEnd {
       get {
         onComplete(sendGetEvents()) {
-          case Success(items) =>
-            complete(responseSuccess(Some(items.asInstanceOf[Seq[MapEvent]])).toJson.prettyPrint)
+          case Success(items) => complete(getStringResponse(items))
           case Failure(t) => complete(t.getMessage)
         }
       } ~
       post {
         entity(as[MapEvent]) { event =>
           onComplete(sendAddEvent(event,User("fwefwef",entities.db.Roles.USER.getRoleId,Some(1)))) {
-            case Success(result) =>
-              if (isError(result)) {
-                complete(result.asInstanceOf[ResponseError].toJson.prettyPrint)
-              }
-              else {
-                complete(result.asInstanceOf[ResponseSuccess[MapEvent]].toJson.prettyPrint)
-              }
+            case Success(result) => complete(getStringResponse(result))
             case Failure(t) => complete(t.getMessage)
           }
         }
@@ -247,7 +220,7 @@ trait RouteService extends HttpService with AccountResponse {
     }
   }
 
-  def getRoute = myRoute;
+  def getRoute = myRoute
   val myRoute = {
     auth ~
     other ~
