@@ -41,6 +41,7 @@ class AccountServiceActor(accountService: AccountService) extends Actor with Acc
         case Success(MyResponse.CODE_NOT_SUCCESS)       => s ! responseNotSuccess().toJson.prettyPrint
         case Success(_)                                 => s ! responseNotSuccess().toJson.prettyPrint
         case Failure(e) =>
+          e.printStackTrace()
           println("failure")
           s ! responseNotSuccess().toJson.prettyPrint
       }
@@ -76,6 +77,7 @@ class AccountService {
   }
 
   def authorize(session: String, token: String, clientId: String) : Future[Int] = {
+    println(clientId)
     val authorized: Option[User] = isAuthorized(session)
     authorized match {
       case Some(user) => return Future.successful(AccountResponse.CODE_AUTH_ALREADY)
