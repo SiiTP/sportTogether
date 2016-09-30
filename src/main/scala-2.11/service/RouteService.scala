@@ -223,7 +223,6 @@ trait RouteService extends HttpService with AccountResponse {
       case result =>
         JsonParser(result.asInstanceOf[String]).convertTo[ResponseSuccess[User]].data match {
           case Some(u) =>
-            auth(token,clientId) ~
             event(u) ~
             category(u)
           case None => complete("fail33")
@@ -233,6 +232,7 @@ trait RouteService extends HttpService with AccountResponse {
   val authRoutes = headerValueByName("Token") { token =>
     headerValueByName("ClientId") {
       clientId =>
+        auth(token,clientId) ~
         sessionRequiredRoutes(token,clientId)
     }
   }
