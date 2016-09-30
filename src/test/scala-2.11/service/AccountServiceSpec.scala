@@ -107,7 +107,7 @@ class AccountServiceSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
       whenReady(authFuture) { result =>
         result shouldEqual responseSuccess[User](None).toJson.prettyPrint
-        val unauthFuture: Future[String] = (accountServiceActor ? Unauthorize("1")).asInstanceOf[Future[String]]
+        val unauthFuture: Future[String] = (accountServiceActor ? Unauthorize("clientid")).asInstanceOf[Future[String]]
 
         whenReady(unauthFuture) {unauthResponse =>
           unauthResponse shouldEqual responseSuccess[User](None).toJson.prettyPrint
@@ -126,7 +126,7 @@ class AccountServiceSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
       whenReady(authFuture) { result =>
         result shouldEqual responseSuccess[User](None).toJson.prettyPrint
-        val unauthFuture: Future[String] = (accountServiceActor ? Unauthorize("1")).asInstanceOf[Future[String]]
+        val unauthFuture: Future[String] = (accountServiceActor ? Unauthorize("clientid")).asInstanceOf[Future[String]]
 
         whenReady(unauthFuture) {unauthResponse =>
           unauthResponse shouldEqual responseSuccess[User](None).toJson.prettyPrint

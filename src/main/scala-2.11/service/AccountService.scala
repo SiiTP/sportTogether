@@ -41,7 +41,6 @@ class AccountServiceActor(accountService: AccountService) extends Actor with Acc
         case Success(MyResponse.CODE_NOT_SUCCESS)       => s ! responseNotSuccess().toJson.prettyPrint
         case Success(_)                                 => s ! responseNotSuccess().toJson.prettyPrint
         case Failure(e) =>
-          e.printStackTrace()
           println("failure")
           s ! responseNotSuccess().toJson.prettyPrint
       }
