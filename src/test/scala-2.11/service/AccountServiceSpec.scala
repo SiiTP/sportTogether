@@ -41,7 +41,7 @@ class AccountServiceSpec extends FlatSpec with Matchers with BeforeAndAfter with
   DatabaseExecutor.config("mysqlDB-test", configFile)
 
   val dbHelper = DatabaseHelper.getInstance
-  dbHelper.init(configFile.getPath)
+  dbHelper.init(getClass.getResourceAsStream("../application_test.conf"))
   val userDAO = new UserDAO
 
   val accountService = new AccountService()
