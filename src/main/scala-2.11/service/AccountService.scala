@@ -25,15 +25,15 @@ class AccountServiceActor(accountService: AccountService) extends Actor with Acc
       println(s"Hello from route : $msg")
       sender ! AccountHello("I'm account")
 
-    case IsAuthorized(session) =>
-      accountService.isAuthorized(session) match {
+    case IsAuthorized(clientId) =>
+      accountService.isAuthorized(clientId) match {
         case Some(user) =>
           sender ! responseSuccess[User](Some(user)).toJson.prettyPrint
         case None => sender ! responseNotAuthorized.toJson.prettyPrint
       }
-    case Authorize(session, token, clientId) =>
+    case Authorize(token, clientId) =>
       val s = sender
-      val future: Future[Int] = accountService.authorize(session, token, clientId)
+      val future: Future[Int] = accountService.authorize(token, clientId)
 
       future.onComplete {
         case Success(AccountResponse.CODE_AUTH_ALREADY) => s ! responseAlreadyAuthorized.toJson.prettyPrint
@@ -75,8 +75,8 @@ class AccountService {
       None
   }
 
-  def authorize(session: String, token: String, clientId: String) : Future[Int] = {
-    val authorized: Option[User] = isAuthorized(session)
+  def authorize(token: String, clientId: String) : Future[Int] = {
+    val authorized: Option[User] = isAuthorized(clientId)
     authorized match {
       case Some(user) => return Future.successful(AccountResponse.CODE_AUTH_ALREADY)
       case None =>
@@ -84,7 +84,7 @@ class AccountService {
     val userFuture: Future[User] = userDAO.getByClientId(clientId)
     userFuture.flatMap {
       case user =>
-        _authAccounts.put(session, user.copy())
+        _authAccounts.put(clientId, user.copy())
         Future.successful(MyResponse.CODE_SUCCESS)
     }
 
