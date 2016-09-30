@@ -22,6 +22,10 @@ object App extends MyResponse {
 //
 //    println(User("a", 1, Some(1)).toJson.prettyPrint)
 //    println(responseSuccess[User](None).toJson.prettyPrint)
+    var port = 8080
+    args(0) match {
+      case str => port = str.toInt
+    }
     DatabaseExecutor.config("mysqlDB")
     val dbHelper = DatabaseHelper.getInstance
     dbHelper.init(App.getClass.getResourceAsStream("application.conf"))
@@ -42,7 +46,7 @@ object App extends MyResponse {
     val routeServiceActor = system.actorOf(Props(classOf[RouteServiceActor], accountServiceActor,eventServiceActor,categoryServiceActor), "routeService")
 
     // start a new HTTP server on port 8080 with our service actor as the handler
-    IO(Http) ? Http.Bind(routeServiceActor, interface = "localhost", port = 8080)
+    IO(Http) ? Http.Bind(routeServiceActor, interface = "localhost", port = port)
 
   }
 }
