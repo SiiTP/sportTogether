@@ -52,9 +52,9 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
       case _ => s"unhandled message"
     }
   }
-  override def sendIsAuthorized(session: String) = {
-    println(session)
-    accountServiceRef ? IsAuthorized(session)
+  override def sendIsAuthorized(clientId: String) = {
+    println(clientId)
+    accountServiceRef ? IsAuthorized(clientId)
   }
   override def sendAuthorize(clientId: String, token: String): Future[Any] = {
     println("send authorize: clientId: " + clientId + " token: " + token)

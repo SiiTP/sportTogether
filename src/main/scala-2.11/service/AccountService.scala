@@ -44,11 +44,6 @@ class AccountServiceActor(accountService: AccountService) extends Actor with Acc
           println("failure")
           s ! responseNotSuccess().toJson.prettyPrint
       }
-//      match {
-//        case AccountResponse.CODE_AUTH_ALREADY => sender ! responseAlreadyAuthorized.toJson.prettyPrint
-//        case MyResponse.CODE_SUCCESS           => sender ! responseSuccess[User](None).toJson.prettyPrint
-//        case MyResponse.CODE_NOT_SUCCESS       => sender ! responseNotSuccess().toJson.prettyPrint
-//      }
     case Unauthorize(session) => accountService.unauthorize(session) match {
       case  MyResponse.CODE_SUCCESS             => sender ! responseSuccess[User](None).toJson.prettyPrint
       case  AccountResponse.CODE_NOT_AUTHORIZED => sender ! responseNotAuthorized.toJson.prettyPrint
@@ -81,6 +76,7 @@ class AccountService {
       case Some(user) => return Future.successful(AccountResponse.CODE_AUTH_ALREADY)
       case None =>
     }
+    //TODO if token right else not success
     val userFuture: Future[User] = userDAO.getByClientId(clientId)
     userFuture.flatMap {
       case user =>
@@ -91,7 +87,6 @@ class AccountService {
 
 //    userFuture.onSuccess {
 //      case User(userClientId, role, id) =>
-//        //TODO if token right else not success
 //        _authAccounts.put(session, new User(userClientId, role, id))
 //        return MyResponse.CODE_SUCCESS
 //
