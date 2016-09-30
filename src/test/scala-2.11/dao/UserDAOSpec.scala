@@ -17,7 +17,7 @@ class UserDAOSpec extends FlatSpec with MockFactory with Matchers with BeforeAnd
   val configFile = new File(getClass.getResource("../application_test.conf").getPath)
   DatabaseExecutor.config("mysqlDB-test", configFile)
   val dbHelper = DatabaseHelper.getInstance
-  dbHelper.init(configFile.getPath)
+  dbHelper.init(getClass.getResourceAsStream("../application_test.conf"))
   val userDAO = new UserDAO
 
   def awaitResult[T](a : Awaitable[T]) = Await.result(a, Duration.create(5,TimeUnit.SECONDS))

@@ -76,14 +76,8 @@ class AccountService {
       None
   }
 
-<<<<<<< HEAD
-  def authorize(session: String, token: String, clientId: String) : Future[Int] = {
-    println(clientId)
-    val authorized: Option[User] = isAuthorized(session)
-=======
   def authorize(token: String, clientId: String) : Future[Int] = {
     val authorized: Option[User] = isAuthorized(clientId)
->>>>>>> 5dbf0451bf76eed53123871afa9e927bbbff64ba
     authorized match {
       case Some(user) => return Future.successful(AccountResponse.CODE_AUTH_ALREADY)
       case None =>
