@@ -56,9 +56,10 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
     println(session)
     accountServiceRef ? IsAuthorized(session)
   }
-  override def sendAuthorize(session: String, clientId: String, token: String): Future[Any] = {
-    println("send authorize: " + session + " clientId: " + clientId + " token: " + token)
-    accountServiceRef ? Authorize(session, token,clientId)
+
+  override def sendAuthorize(clientId: String, token: String): Future[Any] = {
+    println("send authorize: clientId: " + clientId + " token: " + token)
+    accountServiceRef ? Authorize(token, clientId)
   }
   override def sendUnauthorize(session: String): Future[Any] = {
     accountServiceRef ? Unauthorize(session)
@@ -88,11 +89,10 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
 object RouteServiceActor {
   case class RouteHello(msg: String)
 
-  case class Authorize(session: String, token: String, clientId: String)
-  case class IsAuthorized(session: String)
-  case class Unauthorize(session: String)
-  case class GetAccount(session: String)
-  case class CreateAccount(session: String, token: String, role: Int)
+  case class Authorize(token: String, clientId: String)
+  case class IsAuthorized(clientId: String)
+  case class Unauthorize(clientId: String)
+  case class GetAccount(clientId: String)
 
   case class InitEventService(service: ActorRef)
 }
@@ -104,7 +104,7 @@ trait RouteService extends HttpService with AccountResponse {
 
   def sendIsAuthorized(session: String): Future[Any]
 
-  def sendAuthorize(session: String, clientId: String, token: String): Future[Any]
+  def sendAuthorize(clientId: String, token: String): Future[Any]
 
   def sendUnauthorize(session: String): Future[Any]
 
@@ -124,21 +124,21 @@ trait RouteService extends HttpService with AccountResponse {
 
   def getStringResponse(data: Any) = data.asInstanceOf[String]
 
-  def auth(token: String,clientId: String) = pathPrefix("auth") {
+  def auth(token: String, clientId: String) = pathPrefix("auth") {
     get {
-      onComplete(sendIsAuthorized(token)) {
+      onComplete(sendIsAuthorized(clientId)) {
         case Success(item) => complete(item.asInstanceOf[String])
         case util.Failure(t) => complete("fail")
       }
     } ~
       delete {
-        onComplete(sendUnauthorize(token)) {
+        onComplete(sendUnauthorize(clientId)) {
           case Success(item) => complete(item.asInstanceOf[String])
           case util.Failure(t) => complete("fail")
         }
       } ~
     post {
-      onComplete(sendAuthorize(token, clientId, token)) {
+      onComplete(sendAuthorize(clientId, token)) {
         case Success(item) => complete(item.asInstanceOf[String])
         case util.Failure(t) => complete("fail2")
       }
