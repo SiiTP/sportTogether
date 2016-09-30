@@ -1,6 +1,6 @@
 package entities.db
 
-import java.io.{File, FileReader}
+import java.io.{InputStream, File, FileReader}
 import java.util.Properties
 
 import com.typesafe.config.ConfigFactory
@@ -15,10 +15,11 @@ import scala.concurrent.duration.Duration
   */
 class DatabaseHelper private(){
   lazy private val db = DatabaseExecutor.getInstance
-  def init(configPath: String) = {
-    println(configPath)
+  def init(stream: InputStream) = {
+//    println(configPath)
     val properties = new Properties()
-    properties.load(new FileReader(configPath))
+//    properties.load(new FileReader(configPath))
+    properties.load(stream)
     properties.getProperty("db") match {
       case "create" => recreate()
       case _ => None

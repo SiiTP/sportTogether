@@ -1,8 +1,24 @@
+import AssemblyKeys._  // put this at the top of the file
 name := "sportTogether"
 
 version := "1.0"
 scalaVersion := "2.11.8"
 
+assemblySettings
+
+lazy val buildSettings = Seq(
+  version := "0.1-SNAPSHOT",
+  organization := "com.example",
+  scalaVersion := "2.10.1"
+)
+
+val app = (project in file("app")).
+  settings(buildSettings: _*).
+  settings(assemblySettings: _*).
+  settings(
+
+  )
+test in assembly := {}
 libraryDependencies += "org.scalatest" % "scalatest_2.11" % "2.2.1" % "test"
 libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.2.2" % "test"
 

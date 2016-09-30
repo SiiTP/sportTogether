@@ -1,5 +1,9 @@
 package service
 
+import java.security.MessageDigest
+import java.time.Instant
+import java.util.Date
+
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.AskableActorRef
 import akka.util.Timeout
@@ -17,10 +21,11 @@ import response.AccountResponse
 import service.AccountService.AccountHello
 
 import service.RouteServiceActor.{InitEventService, IsAuthorized, RouteHello}
-import spray.http.HttpCookie
+import spray.http.{StatusCodes, HttpCookie}
 import spray.routing._
 import spray.routing.directives.OnSuccessFutureMagnet
 
+import scala.collection.Searching.Found
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future, duration}
@@ -52,7 +57,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
     accountServiceRef ? IsAuthorized(session)
   }
   override def sendAuthorize(session: String, clientId: String, token: String): Future[Any] = {
-    println(session)
+    println("send authorize: " + session + " clientId: " + clientId + " token: " + token)
     accountServiceRef ? Authorize(session, clientId, token)
   }
   override def sendUnauthorize(session: String): Future[Any] = {
@@ -118,29 +123,24 @@ trait RouteService extends HttpService with AccountResponse {
   def sendGetCategories(): Future[Any]
 
   def getStringResponse(data: Any) = data.asInstanceOf[String]
-  val auth = pathPrefix("auth") {
-    cookie("JSESSIONID") {
-      jSession => {
-        get {
-          onComplete(sendIsAuthorized(jSession.content)) {
-            case Success(item) => complete(item.asInstanceOf[String])
-            case util.Failure(t) => complete("fail")
-          }
-        } ~
-          post {
-            parameters('clientId, 'token) { (clientId, token) =>
-              onComplete(sendAuthorize(jSession.content, clientId, token)) {
-                case Success(item) => complete(item.asInstanceOf[String])
-                case util.Failure(t) => complete("fail2")
-              }
-            }
-          } ~
-          delete {
-            onComplete(sendUnauthorize(jSession.content)) {
-              case Success(item) => complete(item.asInstanceOf[String])
-              case util.Failure(t) => complete("fail")
-            }
-          }
+
+  def auth(token: String,clientId: String) = pathPrefix("auth") {
+    get {
+      onComplete(sendIsAuthorized(token)) {
+        case Success(item) => complete(item.asInstanceOf[String])
+        case util.Failure(t) => complete("fail")
+      }
+    } ~
+      delete {
+        onComplete(sendUnauthorize(token)) {
+          case Success(item) => complete(item.asInstanceOf[String])
+          case util.Failure(t) => complete("fail")
+        }
+      } ~
+    post {
+      onComplete(sendAuthorize(token, clientId, token)) {
+        case Success(item) => complete(item.asInstanceOf[String])
+        case util.Failure(t) => complete("fail2")
       }
     }
   }
@@ -170,7 +170,6 @@ trait RouteService extends HttpService with AccountResponse {
       }
     }
   }
-
   def event(user: User) = pathPrefix("event") {
     path(IntNumber){
       id =>
@@ -219,23 +218,26 @@ trait RouteService extends HttpService with AccountResponse {
   }
 
   def getRoute = myRoute
-  def sessionRequiredRoutes(cookie: HttpCookie) = {
-    onSuccess(sendIsAuthorized(cookie.content)){
+  def sessionRequiredRoutes(token: String,clientId:String) = {
+    onSuccess(sendIsAuthorized(clientId)){
       case result =>
         JsonParser(result.asInstanceOf[String]).convertTo[ResponseSuccess[User]].data match {
           case Some(u) =>
+            auth(token,clientId) ~
             event(u) ~
             category(u)
           case None => complete("fail33")
         }
     }
   }
-  val authRoutes = cookie("JSESSIONID") { cookie =>
-      sessionRequiredRoutes(cookie)
+  val authRoutes = headerValueByName("Token") { token =>
+    headerValueByName("ClientId") {
+      clientId =>
+        sessionRequiredRoutes(token,clientId)
+    }
   }
   val myRoute = {
-    auth ~
-    other ~
-    authRoutes
+    authRoutes ~
+    other
   }
 }

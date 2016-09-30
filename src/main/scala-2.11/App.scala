@@ -24,7 +24,7 @@ object App extends MyResponse {
 //    println(responseSuccess[User](None).toJson.prettyPrint)
     DatabaseExecutor.config("mysqlDB")
     val dbHelper = DatabaseHelper.getInstance
-    dbHelper.init(App.getClass.getResource("application.conf").getPath)
+    dbHelper.init(App.getClass.getResourceAsStream("application.conf"))
 
     // we need an ActorSystem to host our application in
     implicit val system = ActorSystem("actor-system-1")
