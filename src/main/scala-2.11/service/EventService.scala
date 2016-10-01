@@ -28,6 +28,7 @@ class EventService {
   }
   def getUserEvents(id: Int) = eventsDAO.eventsByUserId(id)
   def getEvent(id: Int) = eventsDAO.get(id)
+  def getEventsInDistance(distance: Double, lon: Double, lat: Double) = eventsDAO.getNearestEventsByDistance(distance,lon,lat)
 }
 
 object EventService{
@@ -36,6 +37,7 @@ object EventService{
 
   case class GetUserEvents(id: Int)
   case class GetEvent(id: Int)
+  case class GetEventsByDistance(distance: Double, longtitude: Double, latitude: Double)
 }
 class EventServiceActor(eventService: EventService) extends Actor {
   override def receive = {
@@ -61,6 +63,12 @@ class EventServiceActor(eventService: EventService) extends Actor {
       eventService.getEvent(id).onComplete {
         case Success(event) => sended ! EventResponse.responseSuccess(Some(event)).toJson.prettyPrint
         case Failure(t) => sended ! EventResponse.notFoundError.toJson.prettyPrint
+      }
+    case GetEventsByDistance(distance, longtitude, latitude) =>
+      val sended = sender()
+      eventService.getEventsInDistance(distance, longtitude, latitude).onComplete {
+        case Success(events) => sended ! EventResponse.responseSuccess(Some(events)).toJson.prettyPrint
+        case Failure(t) => sended ! EventResponse.unexpectedError.toJson.prettyPrint
       }
   }
 }

@@ -84,6 +84,8 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
   override def sendGetCategory(id: Int): Future[Any] = _categoryService ? CategoryService.GetCategory(id)
 
   override def sendGetCategories(): Future[Any] = _categoryService ? CategoryService.GetCategories()
+
+  override def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double): Future[Any] = _eventService ? EventService.GetEventsByDistance(distance, longtitude, latitude)
 }
 
 object RouteServiceActor {
@@ -119,7 +121,7 @@ trait RouteService extends HttpService with AccountResponse {
   def sendCreateCategory(name: String): Future[Any]
 
   def sendGetCategory(id: Int): Future[Any]
-
+  def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double): Future[Any]
   def sendGetCategories(): Future[Any]
 
   def getStringResponse(data: Any) = data.asInstanceOf[String]
@@ -202,6 +204,16 @@ trait RouteService extends HttpService with AccountResponse {
           case Success(items) => complete(items.asInstanceOf[String])
           case Failure(t) => complete("failed " + t.getMessage)
         }
+      }
+    } ~
+    pathPrefix("distance") {
+      path(DoubleNumber / "lat" / DoubleNumber / "lon" / DoubleNumber) {
+        (distance, latitude, longtitude) =>
+          get {
+            onComplete(sendGetEventsDistance(distance, latitude, longtitude)){
+              case Success(items) => complete(getStringResponse(items))
+            }
+          }
       }
     }
   }

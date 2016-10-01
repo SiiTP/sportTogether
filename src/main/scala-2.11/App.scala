@@ -23,8 +23,10 @@ object App extends MyResponse {
 //    println(User("a", 1, Some(1)).toJson.prettyPrint)
 //    println(responseSuccess[User](None).toJson.prettyPrint)
     var port = 8080
-    args(0) match {
-      case str => port = str.toInt
+    if(args.length > 0){
+        args(0) match {
+          case str => port = str.toInt
+        }
     }
     DatabaseExecutor.config("mysqlDB")
     val dbHelper = DatabaseHelper.getInstance
