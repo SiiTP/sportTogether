@@ -191,7 +191,7 @@ trait RouteService extends HttpService with AccountResponse {
       } ~
       post {
         entity(as[MapEvent]) { event =>
-          onComplete(sendAddEvent(event,User("fwefwef",entities.db.Roles.USER.getRoleId,Some(1)))) {
+          onComplete(sendAddEvent(event,user)) {
             case Success(result) => complete(getStringResponse(result))
             case Failure(t) => complete(t.getMessage)
           }

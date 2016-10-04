@@ -46,7 +46,9 @@ class EventServiceActor(eventService: EventService) extends Actor {
       val sended = sender()
       response.onComplete {
         case Success(result) => sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
-        case Failure(t) => sended ! EventResponse.unexpectedError.toJson.prettyPrint
+        case Failure(t) =>
+          t.printStackTrace()
+          sended ! EventResponse.unexpectedError.toJson.prettyPrint
       }
     case GetEvents() =>
       val sended = sender()
