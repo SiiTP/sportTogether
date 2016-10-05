@@ -30,7 +30,7 @@ class DatabaseHelper private(){
     this.synchronized {
       if(!isCreated){
         Await.result(db.run(DBIO.seq(
-          (users.schema ++ events.schema ++ categories.schema).create
+          (users.schema ++ events.schema ++ categories.schema ++ userReports.schema).create
         )), Duration.Inf)
         println("DATABASE CREATED")
       }
@@ -45,9 +45,10 @@ class DatabaseHelper private(){
   }
   def clearTables = Await.result(db.run(
     DBIO.seq(
-      users     . delete,
-      events    . delete,
-      categories. delete
+      users      . delete,
+      events     . delete,
+      categories . delete,
+      userReports. delete
     )), Duration.Inf)
 
   def drop(): Unit ={
@@ -55,7 +56,7 @@ class DatabaseHelper private(){
       if(isCreated){
   //      Await.result(db.run(sqlu"""SET foreign_key_checks = 0 """),Duration.Inf)
         Await.result(db.run(DBIO.seq(
-          (users.schema ++ events.schema ++ categories.schema).drop
+          (users.schema ++ events.schema ++ categories.schema ++ userReports.schema).drop
         )), Duration.Inf)
   //      Await.result(db.run(sqlu"""SET foreign_key_checks = 1 """),Duration.Inf)
         println("DATABASE DROPPED")
