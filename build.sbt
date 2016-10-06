@@ -21,6 +21,7 @@ val app = (project in file("app")).
 test in assembly := {}
 libraryDependencies += "org.scalatest" % "scalatest_2.11" % "2.2.1" % "test"
 libraryDependencies += "org.scalamock" %% "scalamock-scalatest-support" % "3.2.2" % "test"
+libraryDependencies += "net.databinder.dispatch" %% "dispatch-core" % "0.11.2"
 
 libraryDependencies ++= {
   val akkaV = "2.3.9"

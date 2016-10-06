@@ -12,6 +12,7 @@ import service.AccountService.AccountHello
 import service.RouteServiceActor.{Authorize, IsAuthorized, RouteHello, Unauthorize}
 import spray.json._
 import EntitiesJsonProtocol._
+import dispatch.{_}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
@@ -38,7 +39,9 @@ class AccountServiceActor(accountService: AccountService) extends Actor with Acc
       future.onComplete {
         case Success(AccountResponse.CODE_AUTH_ALREADY) => s ! responseAlreadyAuthorized.toJson.prettyPrint
         case Success(MyResponse.CODE_SUCCESS)           => s ! responseSuccess[User](None).toJson.prettyPrint
-        case Success(MyResponse.CODE_NOT_SUCCESS)       => s ! responseNotSuccess().toJson.prettyPrint
+        case Success(MyResponse.CODE_NOT_SUCCESS)       =>
+          println("code not success")
+          s ! responseNotSuccess().toJson.prettyPrint
         case Success(_)                                 => s ! responseNotSuccess().toJson.prettyPrint
         case Failure(e) =>
           println("failure")
@@ -76,13 +79,43 @@ class AccountService {
       case Some(user) => return Future.successful(AccountResponse.CODE_AUTH_ALREADY)
       case None =>
     }
-    //TODO if token right else not success
-    val userFuture: Future[User] = userDAO.getByClientId(clientId)
-    userFuture.flatMap {
-      case user =>
-        _authAccounts.put(clientId, user.copy())
-        Future.successful(MyResponse.CODE_SUCCESS)
+    println("token : " + token)
+    val response : Future[String] = checkAuth0Token(token)
+    val codeResponse: Future[Boolean] = response map (content => {
+      println("auth0 response success : " + content)
+      true
+    }) recover {
+      case exc: Throwable =>
+        println("handle dispath exception. token not right")
+        false
     }
+    val userFuture: Future[User] = userDAO.getByClientId(clientId)
+    val f = (for {
+      isRightToken <- codeResponse
+      user <- userFuture
+    } yield {
+      println("yield")
+      isRightToken match {
+        case true =>
+          println("case true")
+          _authAccounts.put(clientId, user.copy())
+          MyResponse.CODE_SUCCESS
+        case false =>
+          println("case false")
+          MyResponse.CODE_NOT_SUCCESS
+      }
+    }) recover {
+      case exc: Throwable =>
+        println("for handle exc. case _")
+        exc.printStackTrace()
+        MyResponse.CODE_NOT_SUCCESS
+    }
+    f
+//    userFuture.flatMap {
+//      case user =>
+//        _authAccounts.put(clientId, user.copy())
+//        Future.successful(MyResponse.CODE_SUCCESS)
+//    }
 
 
 //    userFuture.onSuccess {
@@ -101,6 +134,13 @@ class AccountService {
         MyResponse.CODE_SUCCESS
       case None => AccountResponse.CODE_NOT_AUTHORIZED
     }
+  }
+
+  def checkAuth0Token(token: String): Future[String] = {
+    val params = Map("id_token" -> token)
+    val req = url("https://x-devel.auth0.com/tokeninfo/") << params
+    dispatch.Http.configure(_ setFollowRedirects true)(req.POST OK as.String)
+//    Future.successful("Success!!")
   }
   //
   //  def authorizePermanently(session: String, name: String, password: String) =
