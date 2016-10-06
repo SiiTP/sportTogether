@@ -53,7 +53,6 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
     }
   }
   override def sendIsAuthorized(clientId: String) = {
-    println(clientId)
     accountServiceRef ? IsAuthorized(clientId)
   }
 
@@ -84,6 +83,12 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
   override def sendGetCategory(id: Int): Future[Any] = _categoryService ? CategoryService.GetCategory(id)
 
   override def sendGetCategories(): Future[Any] = _categoryService ? CategoryService.GetCategories()
+
+  override def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double): Future[Any] = _eventService ? EventService.GetEventsByDistance(distance, longtitude, latitude)
+
+  override def sendUpdateEvents(event: MapEvent, user: User) = _eventService ? EventService.UpdateEvent(event, user)
+
+  override def sendReportEvent(id: Int, user: User) = _eventService ? EventService.ReportEvent(id, user)
 }
 
 object RouteServiceActor {
@@ -117,11 +122,12 @@ trait RouteService extends HttpService with AccountResponse {
   def sendGetEvent(id: Int): Future[Any]
 
   def sendCreateCategory(name: String): Future[Any]
+  def sendReportEvent(id: Int, user: User): Future[Any]
 
   def sendGetCategory(id: Int): Future[Any]
-
+  def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double): Future[Any]
   def sendGetCategories(): Future[Any]
-
+  def sendUpdateEvents(event: MapEvent, user: User): Future[Any]
   def getStringResponse(data: Any) = data.asInstanceOf[String]
 
   def auth(token: String, clientId: String) = pathPrefix("auth") {
@@ -171,14 +177,36 @@ trait RouteService extends HttpService with AccountResponse {
     }
   }
   def event(user: User) = pathPrefix("event") {
-    path(IntNumber){
+    pathPrefix(IntNumber){
       id =>
-        get {
-          onComplete(sendGetEvent(id)) {
-            case Success(result) => complete(getStringResponse(result))
-            case Failure(t) => complete(t.getMessage)
+        path("report") {
+          get {
+            complete("hello world")
+          } ~
+          post {
+            onComplete(sendReportEvent(id, user)) {
+              case Success(result) => complete(getStringResponse(result))
+              case Failure(t) => complete(t.getMessage)
+            }
+          }
+        } ~
+        pathEnd {
+          get {
+            onComplete(sendGetEvent(id)) {
+              case Success(result) => complete(getStringResponse(result))
+              case Failure(t) => complete(t.getMessage)
+            }
+          } ~
+          put {
+            entity(as[MapEvent]) { event =>
+              onComplete(sendUpdateEvents(event.copy(userId = user.id, id = Some(id)), user)) {
+                case Success(result) => complete(getStringResponse(result))
+                case Failure(t) => complete(t.getMessage)
+              }
+            }
           }
         }
+
     } ~
     pathEnd {
       get {
@@ -189,7 +217,7 @@ trait RouteService extends HttpService with AccountResponse {
       } ~
       post {
         entity(as[MapEvent]) { event =>
-          onComplete(sendAddEvent(event,User("fwefwef",entities.db.Roles.USER.getRoleId,Some(1)))) {
+          onComplete(sendAddEvent(event,user)) {
             case Success(result) => complete(getStringResponse(result))
             case Failure(t) => complete(t.getMessage)
           }
@@ -202,6 +230,16 @@ trait RouteService extends HttpService with AccountResponse {
           case Success(items) => complete(items.asInstanceOf[String])
           case Failure(t) => complete("failed " + t.getMessage)
         }
+      }
+    } ~
+    pathPrefix("distance") {
+      path(DoubleNumber / "lat" / DoubleNumber / "lon" / DoubleNumber) {
+        (distance, latitude, longtitude) =>
+          get {
+            onComplete(sendGetEventsDistance(distance, latitude, longtitude)){
+              case Success(items) => complete(getStringResponse(items))
+            }
+          }
       }
     }
   }
