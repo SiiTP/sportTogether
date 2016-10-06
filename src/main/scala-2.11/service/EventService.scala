@@ -110,7 +110,7 @@ class EventServiceActor(eventService: EventService) extends Actor {
       eventService.getCategoryEvents(id).onComplete {
         case Success(result) =>
           sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
-        case Failure(t) => sended ! EventResponse.unexpectedError.toJson.prettyPrint
+        case Failure(t) => sended ! CategoryResponse.notFoundError.toJson.prettyPrint
       }
   }
 }

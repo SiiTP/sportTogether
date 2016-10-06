@@ -55,6 +55,7 @@ class CategoryServiceActor(categoryService: CategoryService) extends Actor{
       categoryService.getEventsByCategoryName(name).onComplete {
         case Success(result) =>
           sended ! CategoryResponse.responseSuccess(Some(result)).toJson.prettyPrint
+        case Failure(t) => sended ! CategoryResponse.notFoundError.toJson.prettyPrint
       }
   }
 }
