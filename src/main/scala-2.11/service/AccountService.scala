@@ -5,7 +5,7 @@ import java.util
 
 import akka.actor.{Actor, ActorRef}
 import dao.UserDAO
-import entities.db.{EntitiesJsonProtocol, User}
+import entities.db.{EntitiesJsonProtocol, Roles, User}
 import org.jetbrains.annotations.TestOnly
 import response.{AccountResponse, MyResponse}
 import service.AccountService.AccountHello
@@ -80,8 +80,8 @@ class AccountService {
       case None =>
     }
     println("token : " + token)
-    val response : Future[String] = checkAuth0Token(token)
-    val codeResponse: Future[Boolean] = response map (content => {
+    val auth0ResponseFuture : Future[String] = checkAuth0Token(token)
+    val isRightTokenFuture: Future[Boolean] = auth0ResponseFuture map (content => {
       println("auth0 response success : " + content)
       true
     }) recover {
@@ -89,41 +89,51 @@ class AccountService {
         println("handle dispath exception. token not right")
         false
     }
-    val userFuture: Future[User] = userDAO.getByClientId(clientId)
-    val f = (for {
-      isRightToken <- codeResponse
-      user <- userFuture
-    } yield {
-      println("yield")
-      isRightToken match {
-        case true =>
-          println("case true")
-          _authAccounts.put(clientId, user.copy())
-          MyResponse.CODE_SUCCESS
-        case false =>
-          println("case false")
-          MyResponse.CODE_NOT_SUCCESS
+    isRightTokenFuture.flatMap({
+      case true => {
+        userDAO.getByClientId(clientId).flatMap {
+          case user: User =>
+            println("user!!")
+            _authAccounts.put(clientId, user.copy())
+            Future.successful(MyResponse.CODE_SUCCESS)
+        } recoverWith {
+          case exc: NoSuchElementException =>
+            println("no user in db, creating")
+            userDAO.create(User(clientId, Roles.USER.getRoleId)) map {
+              case user =>
+                _authAccounts.put(clientId, user.copy())
+                MyResponse.CODE_SUCCESS
+            } recover {
+              case exc: Throwable =>
+                println("not successful creating")
+                exc.printStackTrace()
+                MyResponse.CODE_NOT_SUCCESS
+            }
+          case _ => Future.successful(1)
+        }
       }
-    }) recover {
-      case exc: Throwable =>
-        println("for handle exc. case _")
-        exc.printStackTrace()
-        MyResponse.CODE_NOT_SUCCESS
-    }
-    f
-//    userFuture.flatMap {
-//      case user =>
-//        _authAccounts.put(clientId, user.copy())
-//        Future.successful(MyResponse.CODE_SUCCESS)
-//    }
-
-
-//    userFuture.onSuccess {
-//      case User(userClientId, role, id) =>
-//        _authAccounts.put(session, new User(userClientId, role, id))
-//        return MyResponse.CODE_SUCCESS
-//
-//      case _ => return MyResponse.CODE_NOT_SUCCESS
+      case false => Future.successful(MyResponse.CODE_NOT_SUCCESS)
+    })
+//    val userFuture: Future[User] = userDAO.getByClientId(clientId)
+//    (for {
+//      isRightToken <- isRightTokenFuture
+//      user <- userFuture
+//    } yield {
+//      println("yield")
+//      isRightToken match {
+//        case true =>
+//          println("case true")
+//          _authAccounts.put(clientId, user.copy())
+//          MyResponse.CODE_SUCCESS
+//        case false =>
+//          println("case false")
+//          MyResponse.CODE_NOT_SUCCESS
+//      }
+//    }) recover {
+//      case exc: NoSuchElementException =>
+//        println("for handle exc. case _")
+//        exc.printStackTrace()
+//        MyResponse.CODE_NOT_SUCCESS
 //    }
   }
 
@@ -141,6 +151,11 @@ class AccountService {
     val req = url("https://x-devel.auth0.com/tokeninfo/") << params
     dispatch.Http.configure(_ setFollowRedirects true)(req.POST OK as.String)
 //    Future.successful("Success!!")
+  }
+
+  @TestOnly
+  def reset() = {
+    _authAccounts.clear()
   }
   //
   //  def authorizePermanently(session: String, name: String, password: String) =

@@ -47,6 +47,9 @@ class AccountServiceSpec extends FlatSpec with Matchers with BeforeAndAfter with
   val accountService = new AccountService()
   val accountServiceActor : AskableActorRef = system.actorOf(Props(classOf[AccountServiceActor], accountService), "accountService")
 
+  before {
+    println("pefore")
+  }
 
   "The account service" should "answer correctly to not authorized user" in {
     val authorizedFuture: Future[String] = (accountServiceActor ? IsAuthorized("1")).asInstanceOf[Future[String]]
@@ -55,10 +58,12 @@ class AccountServiceSpec extends FlatSpec with Matchers with BeforeAndAfter with
     }
   }
 
-    it should "correctly answer when authorize unexisted user" in {
+    it should "correctly create user when authorize unexisted user" in {
+      import EntitiesJsonProtocol._
+
       val future: Future[String] = (accountServiceActor ? Authorize("token", "clientid")).asInstanceOf[Future[String]]
       whenReady(future) { result =>
-        result shouldEqual responseNotSuccess().toJson.prettyPrint
+        result shouldEqual responseSuccess[User](None).toJson.prettyPrint
       }
     }
 
@@ -142,6 +147,7 @@ class AccountServiceSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
   after {
     println("clear tables")
+    accountService.reset()
     dbHelper.clearTables
   }
 }
