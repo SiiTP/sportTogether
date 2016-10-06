@@ -4,7 +4,7 @@ import akka.actor.Actor
 import akka.actor.Actor.Receive
 import dao.EventsDAO
 import entities.db.{UserReport, User, MapEvent}
-import response.EventResponse
+import response.{CategoryResponse, EventResponse}
 import service.EventService._
 
 import scala.concurrent.{Await, Future}
@@ -39,23 +39,23 @@ class EventService {
   def getEventsAround = {
     eventsDAO.allEvents()
   }
+  def getCategoryEvents(id: Int) = eventsDAO.eventsByCategoryId(id)
   def getUserEvents(id: Int) = eventsDAO.eventsByUserId(id)
   def getEvent(id: Int) = eventsDAO.get(id)
   def getEventsInDistance(distance: Double, lon: Double, lat: Double) = eventsDAO.getNearestEventsByDistance(distance,lon,lat)
 }
 
-object EventService{
+object EventService {
   case class AddEvent(event:MapEvent,user:User)
-  case class GetEvents()
 
+  case class GetEvents()
   case class GetUserEvents(id: Int)
   case class GetEvent(id: Int)
   case class GetEventsByDistance(distance: Double, longtitude: Double, latitude: Double)
 
   case class UpdateEvent(event: MapEvent, user: User)
-
   case class ReportEvent(id: Int, user: User)
-
+  case class GetEventsByCategoryId(id: Int)
 }
 class EventServiceActor(eventService: EventService) extends Actor {
   override def receive = {
@@ -104,6 +104,13 @@ class EventServiceActor(eventService: EventService) extends Actor {
       eventService.reportEvent(id, user).onComplete {
         case Success(result) => sended ! EventResponse.responseSuccess(Some(UserReport(user.id.get,id))).toJson.prettyPrint
         case Failure(t) => sended ! EventResponse.alreadyReport.toJson.prettyPrint
+      }
+    case GetEventsByCategoryId(id) =>
+      val sended = sender()
+      eventService.getCategoryEvents(id).onComplete {
+        case Success(result) =>
+          sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
+        case Failure(t) => sended ! EventResponse.unexpectedError.toJson.prettyPrint
       }
   }
 }

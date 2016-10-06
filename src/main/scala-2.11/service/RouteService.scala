@@ -23,7 +23,7 @@ import service.AccountService.AccountHello
 import service.RouteServiceActor.{InitEventService, IsAuthorized, RouteHello}
 import spray.http.{StatusCodes, HttpCookie}
 import spray.routing._
-import spray.routing.directives.OnSuccessFutureMagnet
+import spray.routing.directives.{OnCompleteFutureMagnet, OnSuccessFutureMagnet}
 
 import scala.collection.Searching.Found
 import scala.concurrent.duration._
@@ -89,6 +89,8 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
   override def sendUpdateEvents(event: MapEvent, user: User) = _eventService ? EventService.UpdateEvent(event, user)
 
   override def sendReportEvent(id: Int, user: User) = _eventService ? EventService.ReportEvent(id, user)
+  override def sendGetEventsByCategoryId(id: Int) = _eventService ? EventService.GetEventsByCategoryId(id)
+  override def sendGetEventsByCategoryName(name: String) = _categoryService ? CategoryService.GetEventsByCategoryName(name)
 }
 
 object RouteServiceActor {
@@ -116,18 +118,19 @@ trait RouteService extends HttpService with AccountResponse {
   def sendAddEvent(event: MapEvent, user: User): Future[Any]
 
   def sendGetEvents(): Future[Any]
-
   def sendGetUserEvents(id: Int): Future[Any]
-
+  def sendGetEventsByCategoryId(id: Int): Future[Any]
+  def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double): Future[Any]
   def sendGetEvent(id: Int): Future[Any]
+  def sendGetEventsByCategoryName(name: String): Future[Any]
+
+  def sendGetCategories(): Future[Any]
+  def sendGetCategory(id: Int): Future[Any]
 
   def sendCreateCategory(name: String): Future[Any]
   def sendReportEvent(id: Int, user: User): Future[Any]
-
-  def sendGetCategory(id: Int): Future[Any]
-  def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double): Future[Any]
-  def sendGetCategories(): Future[Any]
   def sendUpdateEvents(event: MapEvent, user: User): Future[Any]
+
   def getStringResponse(data: Any) = data.asInstanceOf[String]
 
   def auth(token: String, clientId: String) = pathPrefix("auth") {
@@ -150,29 +153,53 @@ trait RouteService extends HttpService with AccountResponse {
       }
     }
   }
+
+
+
   def category(user: User) = pathPrefix("category") {
-    path(IntNumber) {
+    pathPrefix(IntNumber) {
       id => {
-        get {
-          onComplete(sendGetCategory(id)) {
-            case Success(result) => complete(getStringResponse(result))
-            case Failure(t) => complete(t.getMessage)
+        path("event") {
+          get {
+            onComplete(sendGetEventsByCategoryId(id)) {
+              case Success(result) => complete(getStringResponse(result))
+              case Failure(t) => complete(t.getMessage)
+            }
+          }
+        } ~
+        pathEnd {
+          get {
+            onComplete(sendGetCategory(id)) {
+              case Success(result) => complete(getStringResponse(result))
+              case Failure(t) => complete(t.getMessage)
+            }
           }
         }
       }
     } ~
-    get {
-      onComplete(sendGetCategories()) {
-        case Success(result) => complete(getStringResponse(result))
-        case Failure(t) => complete(t.getMessage)
-      }
-    } ~
-    post {
-      entity(as[MapCategory]) {
-        category =>
-          onComplete(sendCreateCategory(category.name)) {
+    pathPrefix(Segment) {
+      segment =>
+        get {
+          onComplete(sendGetEventsByCategoryName(segment)) {
             case Success(result) => complete(getStringResponse(result))
+            case Failure(t) => complete(t.getMessage)
           }
+        }
+    } ~
+    pathEnd {
+      get {
+        onComplete(sendGetCategories()) {
+          case Success(result) => complete(getStringResponse(result))
+          case Failure(t) => complete(t.getMessage)
+        }
+      } ~
+      post {
+        entity(as[MapCategory]) {
+          category =>
+            onComplete(sendCreateCategory(category.name)) {
+              case Success(result) => complete(getStringResponse(result))
+            }
+        }
       }
     }
   }

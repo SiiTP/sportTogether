@@ -1,6 +1,6 @@
 package dao
 
-import entities.db.{MapEvents, Tables, MapCategory}
+import entities.db.{MapEvent, MapEvents, Tables, MapCategory}
 import slick.driver.MySQLDriver.api._
 import scala.concurrent.Future
 
@@ -13,7 +13,12 @@ class CategoryDAO extends DatabaseDAO[MapCategory,Int]{
     val insert = (table returning table.map(_.id)).into( (item,id) => item.copy(id = Some(id)))
     execute(insert += r)
   }
-
+  def eventsByCategoryName(name: String): Future[Seq[MapEvent]] = {
+    val seq = for {
+      (i,c) <- table join Tables.events on (_.id === _.catId  ) if i.name === name
+    } yield c
+    execute(seq.result)
+  }
   override def update(r: MapCategory): Future[Int] = {
     val query = table.filter(_.id === r.id)
     val action = query.update(r)
