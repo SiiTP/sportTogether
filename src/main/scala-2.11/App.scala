@@ -5,6 +5,7 @@ import akka.actor.{ActorSystem, Props}
 import akka.io.IO
 import akka.pattern.ask
 import akka.util.Timeout
+import com.typesafe.scalalogging.Logger
 import entities.db.{DatabaseExecutor, DatabaseHelper}
 import response.MyResponse
 import service._
@@ -23,6 +24,8 @@ import scala.util.{Success, Failure}
   */
 object App extends MyResponse {
   def main(args: Array[String]): Unit = {
+    val logger = Logger("webApp")
+    logger.info("Server init begin")
     val params = Map("id_token" -> "some_token")
     val req = url("https://x-devel.auth0.com/tokeninfo/") << params
     val response : Future[String] = dispatch.Http.configure(_ setFollowRedirects true)(req.POST OK as.String)
@@ -47,6 +50,7 @@ object App extends MyResponse {
           case str => port = str.toInt
         }
     }
+    logger.info(s"Starting on port $port")
     DatabaseExecutor.config("mysqlDB")
     val dbHelper = DatabaseHelper.getInstance
     dbHelper.init(App.getClass.getResourceAsStream("application.conf"))
@@ -91,6 +95,6 @@ object App extends MyResponse {
 //
 //    // start a new HTTP server on port 8080 with our service actor as the handler
     IO(Http) ? Http.Bind(routeServiceActor, interface = "localhost", port = port)
-
+    logger.info("Init complete!")
   }
 }

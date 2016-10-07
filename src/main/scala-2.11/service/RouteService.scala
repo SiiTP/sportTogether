@@ -7,7 +7,10 @@ import java.util.Date
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.AskableActorRef
 import akka.util.Timeout
+import com.typesafe.scalalogging.Logger
 import entities.db.{EntitiesJsonProtocol, MapEvent, User}
+import org.slf4j.MarkerFactory
+import org.slf4j.helpers.BasicMarker
 import response.{AccountResponse, MyResponse}
 import service.AccountService.AccountHello
 import service.RouteServiceActor._
@@ -19,7 +22,6 @@ import entities.db.{MapCategory, EntitiesJsonProtocol, MapEvent, User}
 import entities.db.EntitiesJsonProtocol._
 import response.AccountResponse
 import service.AccountService.AccountHello
-
 import service.RouteServiceActor.{InitEventService, IsAuthorized, RouteHello}
 import spray.http.{StatusCodes, HttpCookie}
 import spray.routing._
@@ -105,6 +107,8 @@ object RouteServiceActor {
 }
 
 trait RouteService extends HttpService with AccountResponse {
+  val logger = Logger("webApp")
+
   def accountServiceRef: AskableActorRef
 
   def sendHello: String
@@ -135,21 +139,43 @@ trait RouteService extends HttpService with AccountResponse {
 
   def auth(token: String, clientId: String) = pathPrefix("auth") {
     get {
+
       onComplete(sendIsAuthorized(clientId)) {
-        case Success(item) => complete(item.asInstanceOf[String])
-        case util.Failure(t) => complete("fail")
+        case Success(result) =>
+          logger.info(s"GET /auth  clientId: $clientId and token: $token")
+          val stringResult = getStringResponse(result)
+          logger.debug(stringResult)
+          complete(stringResult)
+        case Failure(t) =>
+          logger.info(s"GET /auth  clientId: $clientId and token: $token")
+          logger.info(t.getMessage)
+          complete(t.getMessage)
       }
     } ~
-      delete {
-        onComplete(sendUnauthorize(clientId)) {
-          case Success(item) => complete(item.asInstanceOf[String])
-          case util.Failure(t) => complete("fail")
-        }
-      } ~
+    delete {
+      onComplete(sendUnauthorize(clientId)) {
+        case Success(result) =>
+          logger.info(s"DELETE /auth  clientId: $clientId and token: $token")
+          val stringResult = getStringResponse(result)
+          logger.debug(stringResult)
+          complete(stringResult)
+        case Failure(t) =>
+          logger.info(s"DELETE /auth  clientId: $clientId and token: $token")
+          logger.info(t.getMessage)
+          complete(t.getMessage)
+      }
+    } ~
     post {
       onComplete(sendAuthorize(clientId, token)) {
-        case Success(item) => complete(item.asInstanceOf[String])
-        case util.Failure(t) => complete("fail2")
+        case Success(result) =>
+          logger.info(s"POST /auth  clientId: $clientId and token: $token")
+          val stringResult = getStringResponse(result)
+          logger.debug(stringResult)
+          complete(stringResult)
+        case Failure(t) =>
+          logger.info(s"POST /auth  clientId: $clientId and token: $token")
+          logger.info(t.getMessage)
+          complete(t.getMessage)
       }
     }
   }
@@ -162,16 +188,29 @@ trait RouteService extends HttpService with AccountResponse {
         path("event") {
           get {
             onComplete(sendGetEventsByCategoryId(id)) {
-              case Success(result) => complete(getStringResponse(result))
+              case Success(result) => {
+                logger.info(s"GET category/$id/event")
+                val stringResult = getStringResponse(result)
+                logger.debug(stringResult)
+                complete(getStringResponse(stringResult))
+              }
               case Failure(t) => complete(t.getMessage)
             }
           }
         } ~
         pathEnd {
           get {
+
             onComplete(sendGetCategory(id)) {
-              case Success(result) => complete(getStringResponse(result))
-              case Failure(t) => complete(t.getMessage)
+              case Success(result) =>
+                logger.info(s"GET category/$id")
+                val stringResult = getStringResponse(result)
+                logger.debug(stringResult)
+                complete(stringResult)
+              case Failure(t) =>
+                logger.info(s"GET category/$id")
+                logger.info(t.getMessage)
+                complete(t.getMessage)
             }
           }
         }
@@ -180,24 +219,49 @@ trait RouteService extends HttpService with AccountResponse {
     pathPrefix(Segment) {
       segment =>
         get {
+
           onComplete(sendGetEventsByCategoryName(segment)) {
-            case Success(result) => complete(getStringResponse(result))
-            case Failure(t) => complete(t.getMessage)
+            case Success(result) =>
+              logger.info(s"GET category/$segment")
+              val stringResult = getStringResponse(result)
+              logger.debug(stringResult)
+              complete(stringResult)
+            case Failure(t) =>
+              logger.info(s"GET category/$segment")
+              logger.info(t.getMessage)
+              complete(t.getMessage)
           }
         }
     } ~
     pathEnd {
       get {
+
         onComplete(sendGetCategories()) {
-          case Success(result) => complete(getStringResponse(result))
-          case Failure(t) => complete(t.getMessage)
+          case Success(result) =>
+            logger.info(s"GET category/")
+            val stringResult = getStringResponse(result)
+            logger.debug(stringResult)
+            complete(stringResult)
+          case Failure(t) =>
+            logger.info(s"GET category/")
+            logger.info(t.getMessage)
+            complete(t.getMessage)
         }
       } ~
       post {
         entity(as[MapCategory]) {
           category =>
+
             onComplete(sendCreateCategory(category.name)) {
-              case Success(result) => complete(getStringResponse(result))
+              case Success(result) =>
+                logger.info(s"POST category/ data:$category")
+                val stringResult = getStringResponse(result)
+                logger.debug(stringResult)
+                complete(stringResult)
+              case Failure(t) =>
+                logger.info(s"POST category/ data:$category")
+                logger.info(t.getMessage)
+                complete(t.getMessage)
             }
         }
       }
@@ -211,24 +275,47 @@ trait RouteService extends HttpService with AccountResponse {
             complete("hello world")
           } ~
           post {
+
             onComplete(sendReportEvent(id, user)) {
-              case Success(result) => complete(getStringResponse(result))
-              case Failure(t) => complete(t.getMessage)
+              case Success(result) =>
+                logger.info(s"POST event/$id/report")
+                val stringResult = getStringResponse(result)
+                logger.debug(stringResult)
+                complete(stringResult)
+              case Failure(t) =>
+                logger.info(s"POST event/$id/report")
+                logger.info(t.getMessage)
+                complete(t.getMessage)
             }
           }
         } ~
         pathEnd {
           get {
             onComplete(sendGetEvent(id)) {
-              case Success(result) => complete(getStringResponse(result))
-              case Failure(t) => complete(t.getMessage)
+              case Success(result) =>
+                logger.info(s"GET event/$id ")
+                val stringResult = getStringResponse(result)
+                logger.debug(stringResult)
+                complete(stringResult)
+              case Failure(t) =>
+                logger.info(s"GET event/$id ")
+                logger.info(t.getMessage)
+                complete(t.getMessage)
             }
           } ~
           put {
             entity(as[MapEvent]) { event =>
+
               onComplete(sendUpdateEvents(event.copy(userId = user.id, id = Some(id)), user)) {
-                case Success(result) => complete(getStringResponse(result))
-                case Failure(t) => complete(t.getMessage)
+                case Success(result) =>
+                  logger.info(s"PUT event/$id data:$event")
+                  val stringResult = getStringResponse(result)
+                  logger.debug(stringResult)
+                  complete(stringResult)
+                case Failure(t) =>
+                  logger.info(s"PUT event/$id data:$event")
+                  logger.info(t.getMessage)
+                  complete(t.getMessage)
               }
             }
           }
@@ -238,15 +325,30 @@ trait RouteService extends HttpService with AccountResponse {
     pathEnd {
       get {
         onComplete(sendGetEvents()) {
-          case Success(items) => complete(getStringResponse(items))
-          case Failure(t) => complete(t.getMessage)
+          case Success(result) =>
+            logger.info(s"GET event/")
+            val stringResult = getStringResponse(result)
+            logger.debug(stringResult)
+            complete(stringResult)
+          case Failure(t) =>
+            logger.info(s"GET event/")
+            logger.info(t.getMessage)
+            complete(t.getMessage)
         }
       } ~
       post {
         entity(as[MapEvent]) { event =>
+
           onComplete(sendAddEvent(event,user)) {
-            case Success(result) => complete(getStringResponse(result))
-            case Failure(t) => complete(t.getMessage)
+            case Success(result) =>
+              logger.info(s"POST event/ data:$event")
+              val stringResult = getStringResponse(result)
+              logger.debug(stringResult)
+              complete(stringResult)
+            case Failure(t) =>
+              logger.info(s"POST event/ data:$event")
+              logger.info(t.getMessage)
+              complete(t.getMessage)
           }
         }
       }
@@ -254,19 +356,37 @@ trait RouteService extends HttpService with AccountResponse {
     pathPrefix("user") {
       get {
         onComplete(sendGetUserEvents(user.id.get)) {
-          case Success(items) => complete(items.asInstanceOf[String])
-          case Failure(t) => complete("failed " + t.getMessage)
+          case Success(result) =>
+            logger.info("GET event/user")
+            val stringResult = getStringResponse(result)
+            logger.debug(stringResult)
+            complete(stringResult)
+          case Failure(t) =>
+            logger.info("GET event/user")
+            logger.info(t.getMessage)
+            complete(t.getMessage)
         }
       }
     } ~
     pathPrefix("distance") {
-      path(DoubleNumber / "lat" / DoubleNumber / "lon" / DoubleNumber) {
-        (distance, latitude, longtitude) =>
-          get {
-            onComplete(sendGetEventsDistance(distance, latitude, longtitude)){
-              case Success(items) => complete(getStringResponse(items))
+      path(DoubleNumber) {
+        distance =>
+        parameter("latitude".as[Double], "longtitude".as[Double]) {
+          (latitude, longtitude) =>
+            get {
+              onComplete(sendGetEventsDistance(distance, latitude, longtitude)){
+                case Success(result) =>
+                  logger.info(s"GET event/distance/$distance Latittude $latitude and $longtitude")
+                  val stringResult = getStringResponse(result)
+                  logger.debug(stringResult)
+                  complete(stringResult)
+                case Failure(t) =>
+                  logger.info(s"GET event/distance/$distance Latittude $latitude and $longtitude")
+                  logger.info(t.getMessage)
+                  complete(t.getMessage)
+              }
             }
-          }
+        }
       }
     }
   }
@@ -286,17 +406,23 @@ trait RouteService extends HttpService with AccountResponse {
   def sessionRequiredRoutes(token: String,clientId:String) = {
     onSuccess(sendIsAuthorized(clientId)){
       case result =>
+        logger.info("Is Authorized " + result)
         JsonParser(result.asInstanceOf[String]).convertTo[ResponseSuccess[User]].data match {
           case Some(u) =>
+            logger.debug(s"USER: $u")
             event(u) ~
             category(u)
-          case None => complete("fail33")
+          case None => {
+            logger.info(s"No auth for $clientId")
+            complete("no auth")
+          }
         }
     }
   }
   val authRoutes = headerValueByName("Token") { token =>
     headerValueByName("ClientId") {
       clientId =>
+        logger.info("Auth with ClientId " + clientId + " token " + token)
         auth(token,clientId) ~
         sessionRequiredRoutes(token,clientId)
     }
@@ -306,3 +432,4 @@ trait RouteService extends HttpService with AccountResponse {
     other
   }
 }
+
