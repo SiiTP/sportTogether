@@ -32,6 +32,8 @@ libraryDependencies ++= {
     "io.spray"                      %%  "spray-testkit"         % sprayV    % "test",
     "io.spray"                      %%  "spray-httpx"           % sprayV,
     "io.spray"                      %%  "spray-json"            % "1.3.2",
+    "io.spray"                      %%  "spray-client"          % sprayV,
+    "io.spray"                      %%  "spray-http"            % sprayV,
     "com.typesafe.akka"             %%  "akka-actor"            % akkaV,
     "com.typesafe.akka"             %%  "akka-testkit"          % akkaV     % "test",
     "com.typesafe.scala-logging"    %%  "scala-logging"         % "3.5.0",

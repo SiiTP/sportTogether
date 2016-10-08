@@ -4,7 +4,7 @@ import java.security.MessageDigest
 import java.time.Instant
 import java.util.Date
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor._
 import akka.pattern.AskableActorRef
 import akka.util.Timeout
 import com.typesafe.scalalogging.Logger
@@ -14,9 +14,6 @@ import org.slf4j.helpers.BasicMarker
 import response.{AccountResponse, MyResponse}
 import service.AccountService.AccountHello
 import service.RouteServiceActor._
-
-import akka.actor.{ActorRef, Actor}
-import akka.pattern.AskableActorRef
 import akka.util.Timeout
 import entities.db.{MapCategory, EntitiesJsonProtocol, MapEvent, User}
 import entities.db.EntitiesJsonProtocol._
@@ -41,8 +38,8 @@ import ExecutionContext.Implicits.global
 import scala.util
 import scala.util.{Try, Failure, Success}
 
-class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: AskableActorRef,_categoryService: AskableActorRef) extends Actor with RouteService {
-  implicit lazy val timeout = Timeout(10.seconds)
+class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: AskableActorRef,_categoryService: AskableActorRef, _fcmService: AskableActorRef) extends Actor with RouteService {
+  implicit lazy val timeouts = Timeout(10.seconds)
   def actorRefFactory = context
   def accountServiceRef: AskableActorRef = _accountServiceRef
   def eventsServiceRef = _eventService
@@ -93,6 +90,8 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
   override def sendReportEvent(id: Int, user: User) = _eventService ? EventService.ReportEvent(id, user)
   override def sendGetEventsByCategoryId(id: Int) = _eventService ? EventService.GetEventsByCategoryId(id)
   override def sendGetEventsByCategoryName(name: String) = _categoryService ? CategoryService.GetEventsByCategoryName(name)
+
+  override def testMessageSend(token: String): Future[Any] = _fcmService ? FcmService.SendMessage(token,JsObject("hello" -> JsString("world"), "id" -> JsNumber(5), "bools" -> JsBoolean(true)))
 }
 
 object RouteServiceActor {
@@ -303,6 +302,14 @@ trait RouteService extends HttpService with AccountResponse {
     }
   }
 
+  def testMessageSend(token: String): Future[Any]
+  val gcm = path("gcm") {
+    get {
+      onComplete(testMessageSend("eip4vuQhWQU:APA91bEFEEZKOAUBoKwa3RsjU7oTcKTVbWdZbqZ5JB4d5vjJH7H8kFN3hKWKuOovhShpLVt6asIsiWVZdLZvsDHAraftWgltTNMixG7TmQwphH-vjQ6TVMC-QxZs6FZBM8tCJ7O2Qa8v")) {
+        case Success(result) => complete(result.asInstanceOf[String])
+      }
+    }
+  }
 
   val other = get {
     pathPrefix("hello") {
@@ -315,7 +322,6 @@ trait RouteService extends HttpService with AccountResponse {
         }
     }
   }
-
   def getRoute = myRoute
   def sessionRequiredRoutes(token: String,clientId:String) = {
     onSuccess(sendIsAuthorized(clientId)){
@@ -343,7 +349,8 @@ trait RouteService extends HttpService with AccountResponse {
   }
   val myRoute = {
     authRoutes ~
-    other
+    other ~
+    gcm
   }
 }
 
