@@ -39,7 +39,7 @@ import EntitiesJsonProtocol.mapEventFormat
 import spray.httpx.SprayJsonSupport._
 import ExecutionContext.Implicits.global
 import scala.util
-import scala.util.{Failure,Success}
+import scala.util.{Try, Failure, Success}
 
 class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: AskableActorRef,_categoryService: AskableActorRef) extends Actor with RouteService {
   implicit lazy val timeout = Timeout(10.seconds)
@@ -122,65 +122,61 @@ trait RouteService extends HttpService with AccountResponse {
   def sendAddEvent(event: MapEvent, user: User): Future[Any]
 
   def sendGetEvents(): Future[Any]
+
   def sendGetUserEvents(id: Int): Future[Any]
+
   def sendGetEventsByCategoryId(id: Int): Future[Any]
+
   def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double): Future[Any]
+
   def sendGetEvent(id: Int): Future[Any]
+
   def sendGetEventsByCategoryName(name: String): Future[Any]
 
   def sendGetCategories(): Future[Any]
+
   def sendGetCategory(id: Int): Future[Any]
 
   def sendCreateCategory(name: String): Future[Any]
+
   def sendReportEvent(id: Int, user: User): Future[Any]
+
   def sendUpdateEvents(event: MapEvent, user: User): Future[Any]
 
   def getStringResponse(data: Any) = data.asInstanceOf[String]
+
+  //т.к. везде одинаковые ответы(строки), то вынес все в одну функцию
+  def defaultResponse(a: Try[Any]): Route = a match {
+    case Success(result) =>
+      val stringResult = getStringResponse(result)
+      logger.debug(stringResult)
+      complete(stringResult)
+    case Failure(t) =>
+      logger.info(t.getMessage)
+      complete(t.getMessage)
+  }
 
   def auth(token: String, clientId: String) = pathPrefix("auth") {
     get {
 
       onComplete(sendIsAuthorized(clientId)) {
-        case Success(result) =>
-          logger.info(s"GET /auth  clientId: $clientId and token: $token")
-          val stringResult = getStringResponse(result)
-          logger.debug(stringResult)
-          complete(stringResult)
-        case Failure(t) =>
-          logger.info(s"GET /auth  clientId: $clientId and token: $token")
-          logger.info(t.getMessage)
-          complete(t.getMessage)
+        logger.info(s"GET /auth  clientId: $clientId and token: $token")
+        defaultResponse
       }
     } ~
-    delete {
-      onComplete(sendUnauthorize(clientId)) {
-        case Success(result) =>
+      delete {
+        onComplete(sendUnauthorize(clientId)) {
           logger.info(s"DELETE /auth  clientId: $clientId and token: $token")
-          val stringResult = getStringResponse(result)
-          logger.debug(stringResult)
-          complete(stringResult)
-        case Failure(t) =>
-          logger.info(s"DELETE /auth  clientId: $clientId and token: $token")
-          logger.info(t.getMessage)
-          complete(t.getMessage)
-      }
-    } ~
-    post {
-      onComplete(sendAuthorize(clientId, token)) {
-        case Success(result) =>
+          defaultResponse
+        }
+      } ~
+      post {
+        onComplete(sendAuthorize(clientId, token)) {
           logger.info(s"POST /auth  clientId: $clientId and token: $token")
-          val stringResult = getStringResponse(result)
-          logger.debug(stringResult)
-          complete(stringResult)
-        case Failure(t) =>
-          logger.info(s"POST /auth  clientId: $clientId and token: $token")
-          logger.info(t.getMessage)
-          complete(t.getMessage)
+          defaultResponse
+        }
       }
-    }
   }
-
-
 
   def category(user: User) = pathPrefix("category") {
     pathPrefix(IntNumber) {
@@ -188,208 +184,126 @@ trait RouteService extends HttpService with AccountResponse {
         path("event") {
           get {
             onComplete(sendGetEventsByCategoryId(id)) {
-              case Success(result) => {
-                logger.info(s"GET category/$id/event")
-                val stringResult = getStringResponse(result)
-                logger.debug(stringResult)
-                complete(getStringResponse(stringResult))
-              }
-              case Failure(t) => complete(t.getMessage)
+              logger.info(s"GET category/$id/event")
+              defaultResponse
             }
           }
         } ~
-        pathEnd {
-          get {
-
-            onComplete(sendGetCategory(id)) {
-              case Success(result) =>
+          pathEnd {
+            get {
+              onComplete(sendGetCategory(id)) {
                 logger.info(s"GET category/$id")
-                val stringResult = getStringResponse(result)
-                logger.debug(stringResult)
-                complete(stringResult)
-              case Failure(t) =>
-                logger.info(s"GET category/$id")
-                logger.info(t.getMessage)
-                complete(t.getMessage)
+                defaultResponse
+              }
             }
           }
-        }
       }
     } ~
-    pathPrefix(Segment) {
-      segment =>
+      pathPrefix(Segment) {
+        segment =>
+          get {
+            onComplete(sendGetEventsByCategoryName(segment)) {
+              logger.info(s"GET category/$segment")
+              defaultResponse
+            }
+          }
+      } ~
+      pathEnd {
         get {
 
-          onComplete(sendGetEventsByCategoryName(segment)) {
-            case Success(result) =>
-              logger.info(s"GET category/$segment")
-              val stringResult = getStringResponse(result)
-              logger.debug(stringResult)
-              complete(stringResult)
-            case Failure(t) =>
-              logger.info(s"GET category/$segment")
-              logger.info(t.getMessage)
-              complete(t.getMessage)
+          onComplete(sendGetCategories()) {
+            logger.info(s"GET category/")
+            defaultResponse
           }
-        }
-    } ~
-    pathEnd {
-      get {
+        } ~
+          post {
+            entity(as[MapCategory]) {
+              category =>
 
-        onComplete(sendGetCategories()) {
-          case Success(result) =>
-            logger.info(s"GET category/")
-            val stringResult = getStringResponse(result)
-            logger.debug(stringResult)
-            complete(stringResult)
-          case Failure(t) =>
-            logger.info(s"GET category/")
-            logger.info(t.getMessage)
-            complete(t.getMessage)
-        }
-      } ~
-      post {
-        entity(as[MapCategory]) {
-          category =>
-
-            onComplete(sendCreateCategory(category.name)) {
-              case Success(result) =>
-                logger.info(s"POST category/ data:$category")
-                val stringResult = getStringResponse(result)
-                logger.debug(stringResult)
-                complete(stringResult)
-              case Failure(t) =>
-                logger.info(s"POST category/ data:$category")
-                logger.info(t.getMessage)
-                complete(t.getMessage)
+                onComplete(sendCreateCategory(category.name)) {
+                  logger.info(s"POST category/ data:$category")
+                  defaultResponse
+                }
             }
-        }
+          }
       }
-    }
   }
+
   def event(user: User) = pathPrefix("event") {
-    pathPrefix(IntNumber){
+    pathPrefix(IntNumber) {
       id =>
         path("report") {
           get {
             complete("hello world")
           } ~
-          post {
-
-            onComplete(sendReportEvent(id, user)) {
-              case Success(result) =>
+            post {
+              onComplete(sendReportEvent(id, user)) {
                 logger.info(s"POST event/$id/report")
-                val stringResult = getStringResponse(result)
-                logger.debug(stringResult)
-                complete(stringResult)
-              case Failure(t) =>
-                logger.info(s"POST event/$id/report")
-                logger.info(t.getMessage)
-                complete(t.getMessage)
-            }
-          }
-        } ~
-        pathEnd {
-          get {
-            onComplete(sendGetEvent(id)) {
-              case Success(result) =>
-                logger.info(s"GET event/$id ")
-                val stringResult = getStringResponse(result)
-                logger.debug(stringResult)
-                complete(stringResult)
-              case Failure(t) =>
-                logger.info(s"GET event/$id ")
-                logger.info(t.getMessage)
-                complete(t.getMessage)
-            }
-          } ~
-          put {
-            entity(as[MapEvent]) { event =>
-
-              onComplete(sendUpdateEvents(event.copy(userId = user.id, id = Some(id)), user)) {
-                case Success(result) =>
-                  logger.info(s"PUT event/$id data:$event")
-                  val stringResult = getStringResponse(result)
-                  logger.debug(stringResult)
-                  complete(stringResult)
-                case Failure(t) =>
-                  logger.info(s"PUT event/$id data:$event")
-                  logger.info(t.getMessage)
-                  complete(t.getMessage)
+                defaultResponse
               }
             }
+        } ~
+          pathEnd {
+            get {
+              onComplete(sendGetEvent(id)) {
+                logger.info(s"GET event/$id ")
+                defaultResponse
+              }
+            } ~
+              put {
+                entity(as[MapEvent]) { event =>
+
+                  onComplete(sendUpdateEvents(event.copy(userId = user.id, id = Some(id)), user)) {
+                    logger.info(s"PUT event/$id data:$event")
+                    defaultResponse
+                  }
+                }
+              }
           }
-        }
 
     } ~
     pathEnd {
       get {
         onComplete(sendGetEvents()) {
-          case Success(result) =>
-            logger.info(s"GET event/")
-            val stringResult = getStringResponse(result)
-            logger.debug(stringResult)
-            complete(stringResult)
-          case Failure(t) =>
-            logger.info(s"GET event/")
-            logger.info(t.getMessage)
-            complete(t.getMessage)
+          logger.info(s"GET event/")
+          defaultResponse
         }
       } ~
-      post {
-        entity(as[MapEvent]) { event =>
+        post {
+          entity(as[MapEvent]) { event =>
 
-          onComplete(sendAddEvent(event,user)) {
-            case Success(result) =>
+            onComplete(sendAddEvent(event, user)) {
               logger.info(s"POST event/ data:$event")
-              val stringResult = getStringResponse(result)
-              logger.debug(stringResult)
-              complete(stringResult)
-            case Failure(t) =>
-              logger.info(s"POST event/ data:$event")
-              logger.info(t.getMessage)
-              complete(t.getMessage)
+              defaultResponse
+            }
           }
         }
-      }
     } ~
     pathPrefix("user") {
       get {
         onComplete(sendGetUserEvents(user.id.get)) {
-          case Success(result) =>
-            logger.info("GET event/user")
-            val stringResult = getStringResponse(result)
-            logger.debug(stringResult)
-            complete(stringResult)
-          case Failure(t) =>
-            logger.info("GET event/user")
-            logger.info(t.getMessage)
-            complete(t.getMessage)
+          logger.info("GET event/user")
+          defaultResponse
         }
       }
     } ~
     pathPrefix("distance") {
       path(DoubleNumber) {
         distance =>
-        parameter("latitude".as[Double], "longtitude".as[Double]) {
-          (latitude, longtitude) =>
-            get {
-              onComplete(sendGetEventsDistance(distance, latitude, longtitude)){
-                case Success(result) =>
+          parameter("latitude".as[Double], "longtitude".as[Double]) {
+            (latitude, longtitude) =>
+              get {
+                onComplete(sendGetEventsDistance(distance, latitude, longtitude)) {
                   logger.info(s"GET event/distance/$distance Latittude $latitude and $longtitude")
-                  val stringResult = getStringResponse(result)
-                  logger.debug(stringResult)
-                  complete(stringResult)
-                case Failure(t) =>
-                  logger.info(s"GET event/distance/$distance Latittude $latitude and $longtitude")
-                  logger.info(t.getMessage)
-                  complete(t.getMessage)
+                  defaultResponse
+                }
               }
-            }
-        }
+          }
       }
     }
   }
+
+
   val other = get {
     pathPrefix("hello") {
       path("world") {
