@@ -180,8 +180,6 @@ trait RouteService extends HttpService with AccountResponse {
     }
   }
 
-
-
   def category(user: User) = pathPrefix("category") {
     pathPrefix(IntNumber) {
       id => {

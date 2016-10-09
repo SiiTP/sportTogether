@@ -147,48 +147,14 @@ class AccountService {
   }
 
   def checkAuth0Token(token: String): Future[String] = {
-    val params = Map("id_token" -> token)
-    val req = url("https://x-devel.auth0.com/tokeninfo/") << params
-    dispatch.Http.configure(_ setFollowRedirects true)(req.POST OK as.String)
-//    Future.successful("Success!!")
+//    val params = Map("id_token" -> token)
+//    val req = url("https://x-devel.auth0.com/tokeninfo/") << params
+//    dispatch.Http.configure(_ setFollowRedirects true)(req.POST OK as.String)
+    Future.successful("Success!!")
   }
 
   @TestOnly
   def reset() = {
     _authAccounts.clear()
   }
-  //
-  //  def authorizePermanently(session: String, name: String, password: String) =
-  //    authorize(session, name, password, Long.MaxValue)
-  //
-  //  def unAuthorize(session: String) : Option[Account] = {
-  //    _authAccounts.remove(session) match {
-  //      case account =>
-  //        _sessionTimeout.remove(session)
-  //        accountDAO.deleteSession(session)
-  //        Some(account)
-  //      case null => None
-  //    }
-  //  }
-  //
-  //  def register(session: String, name: String, password: String, role: String) : Int = {
-  //    if (accountDAO.create(name, password, role, session, 0)) {
-  //      authorize(session, name, password, AccountService.timeoutNextWeek())
-  //      AccountService.CODE_REG_SUCCESSFUL
-  //    } else {
-  //      AccountService.CODE_REG_ACC_EXIST
-  //    }
-  //  }
-  //
-  //  def registerUser(session: String, name: String, password: String) : Int = {
-  //    this.register(session, name, password, Account.ROLE_USER)
-  //  }
-  //
-  //  def getAccount(session: String) : Option[Account] = {
-  //    val authorized = isAuthorized(session)
-  //    if (authorized == AccountService.CODE_AUTHORIZED) {
-  //      return Some(_authAccounts.get(session))
-  //    }
-  //    None
-  //  }
 }
