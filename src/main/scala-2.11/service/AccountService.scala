@@ -20,7 +20,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future, duration}
 import scala.util.{Failure, Success}
 
-class AccountServiceActor(accountService: AccountService) extends Actor with AccountResponse {
+class AccountServiceActor(accountService: AccountService) extends Actor {
 
   override def receive = {
     case RouteHello(msg) =>
@@ -30,27 +30,25 @@ class AccountServiceActor(accountService: AccountService) extends Actor with Acc
     case IsAuthorized(clientId) =>
       accountService.isAuthorized(clientId) match {
         case Some(user) =>
-          sender ! responseSuccess[User](Some(user)).toJson.prettyPrint
-        case None => sender ! responseNotAuthorized.toJson.prettyPrint
+          sender ! AccountResponse.responseSuccess[User](Some(user)).toJson.prettyPrint
+        case None => sender ! AccountResponse.responseNotAuthorized.toJson.prettyPrint
       }
     case Authorize(token, clientId) =>
       val s = sender
       val future: Future[Int] = accountService.authorize(token, clientId)
 
       future.onComplete {
-        case Success(AccountResponse.CODE_AUTH_ALREADY) => s ! responseAlreadyAuthorized.toJson.prettyPrint
-        case Success(MyResponse.CODE_SUCCESS)           => s ! responseSuccess[User](None).toJson.prettyPrint
-        case Success(MyResponse.CODE_NOT_SUCCESS)       =>
-          println("code not success")
-          s ! responseNotSuccess().toJson.prettyPrint
-        case Success(_)                                 => s ! responseNotSuccess().toJson.prettyPrint
+        case Success(AccountResponse.CODE_AUTH_ALREADY) => s ! AccountResponse.responseAlreadyAuthorized.toJson.prettyPrint
+        case Success(MyResponse.CODE_SUCCESS)           => s ! AccountResponse.responseSuccess[User](None).toJson.prettyPrint
+        case Success(MyResponse.CODE_NOT_SUCCESS)       => s ! AccountResponse.responseNotSuccess().toJson.prettyPrint
+        case Success(_)                                 => s ! AccountResponse.responseNotSuccess().toJson.prettyPrint
         case Failure(e) =>
           println("failure")
-          s ! responseNotSuccess().toJson.prettyPrint
+          s ! AccountResponse.responseNotSuccess().toJson.prettyPrint
       }
     case Unauthorize(session) => accountService.unauthorize(session) match {
-      case  MyResponse.CODE_SUCCESS             => sender ! responseSuccess[User](None).toJson.prettyPrint
-      case  AccountResponse.CODE_NOT_AUTHORIZED => sender ! responseNotAuthorized.toJson.prettyPrint
+      case  MyResponse.CODE_SUCCESS             => sender ! AccountResponse.responseSuccess[User](None).toJson.prettyPrint
+      case  AccountResponse.CODE_NOT_AUTHORIZED => sender ! AccountResponse.responseNotAuthorized.toJson.prettyPrint
     }
     case _ => println("other received")
   }
@@ -101,7 +99,6 @@ class AccountService {
             Future.successful(MyResponse.CODE_SUCCESS)
         } recoverWith {
           case exc: NoSuchElementException =>
-            println("no user in db, creating")
             userDAO.create(User(clientId, Roles.USER.getRoleId)) map {
               case user =>
                 logger.info(s"your clientId is new. You registered. Success!")
@@ -135,7 +132,7 @@ class AccountService {
 //    val params = Map("id_token" -> token)
 //    val req = url("https://x-devel.auth0.com/tokeninfo/") << params
 //    dispatch.Http.configure(_ setFollowRedirects true)(req.POST OK as.String)
-    Future.successful("Success!!")
+    Future.successful("Mocked answer!!!")
   }
 
   @TestOnly
