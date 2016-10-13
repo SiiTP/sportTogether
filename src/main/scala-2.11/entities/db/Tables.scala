@@ -16,7 +16,7 @@ object Tables {
 }
 
 case class MapCategory(name: String, id: Option[Int] = None)
-case class MapEvent(name: String, categoryId: Int, latitude: Double, longtitude: Double, date: Timestamp, maxPeople: Int = 0, description: Option[String] = None,isEnded: Boolean = false, userId: Option[Int] = None, id: Option[Int] = None)
+case class MapEvent(name: String, categoryId: Int, latitude: Double, longtitude: Double, date: Timestamp, maxPeople: Int = 0, reports: Option[Int] = None, description: Option[String] = None,isEnded: Boolean = false, userId: Option[Int] = None, id: Option[Int] = None)
 case class User(clientId: String, role: Int, id: Option[Int] = None)
 case class UserReport(userId: Int, eventId: Int)
 object EntitiesJsonProtocol extends DefaultJsonProtocol {
@@ -25,7 +25,7 @@ object EntitiesJsonProtocol extends DefaultJsonProtocol {
     override def write(obj: Timestamp): JsValue = JsNumber(obj.getTime)
   }
   implicit val userFormat = jsonFormat3(User)
-  implicit val mapEventFormat = jsonFormat10(MapEvent)
+  implicit val mapEventFormat = jsonFormat11(MapEvent)
   implicit val mapCategoryFormat = jsonFormat2(MapCategory)
   implicit val userReportFormat = jsonFormat2(UserReport)
 
@@ -53,13 +53,14 @@ class MapEvents(tag:Tag) extends Table[MapEvent](tag,"events") {
   def catId = column[Int]("cat_id")
   def userId = column[Int]("user_id")
   def maxPeople = column[Int]("people")
+  def report = column[Int]("reports")
   def isEnded = column[Boolean]("isEnded")
   def date = column[Timestamp]("date")
   def latitude = column[Double]("latitude")
   def longtitude = column[Double]("longtitude")
   def mapCategory = foreignKey("cat_fk",catId,Tables.categories)(_.id)
   def mapUser = foreignKey("user_fk",userId,Tables.users)(_.id)
-  def * = (name, catId, latitude, longtitude, date,  maxPeople, description.?, isEnded, userId.?, id.?) <> (MapEvent.tupled,MapEvent.unapply)
+  def * = (name, catId, latitude, longtitude, date,  maxPeople, report.?, description.?, isEnded, userId.?, id.?) <> (MapEvent.tupled,MapEvent.unapply)
 }
 class Users(tag:Tag) extends Table[User](tag,"user"){
   def id = column[Int]("id",O.PrimaryKey,O.AutoInc)
