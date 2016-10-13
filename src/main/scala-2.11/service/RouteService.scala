@@ -5,7 +5,7 @@ import akka.pattern.AskableActorRef
 import com.typesafe.scalalogging.Logger
 import service.RouteServiceActor._
 import akka.util.Timeout
-import entities.db.{MapCategory, EntitiesJsonProtocol, MapEvent, User}
+import entities.db.{EntitiesJsonProtocol, MapCategory, MapEvent, User}
 import entities.db.EntitiesJsonProtocol._
 import response.AccountResponse
 import service.AccountService.AccountHello
@@ -14,15 +14,16 @@ import spray.routing._
 
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration
-
-import scala.concurrent.{ExecutionContext, Await, Future, duration}
+import scala.concurrent.{Await, ExecutionContext, Future, duration}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import EntitiesJsonProtocol.mapEventFormat
+import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
+
 import ExecutionContext.Implicits.global
 import scala.util
-import scala.util.{Try, Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: AskableActorRef,_categoryService: AskableActorRef, _fcmService: AskableActorRef) extends Actor with RouteService {
   implicit lazy val timeouts = Timeout(10.seconds)
@@ -305,10 +306,12 @@ trait RouteService extends HttpService {
       path("world") {
         complete("Hello world!")
       } ~
-        parameters('foo.?) { (foo) =>
-          val str = foo.getOrElse("not defined")
-          complete(s"Foo is $str")
-        }
+      path("token") {
+        (headerValueByName("Token") & headerValueByName("ClientId123")) { (t, c) =>
+          complete(s"t: $t c: $c")
+        } ~
+        complete(StatusCodes.Unauthorized, "No some headers")
+      }
     }
   }
   def getRoute = myRoute
@@ -323,19 +326,25 @@ trait RouteService extends HttpService {
             category(u)
           case None => {
             logger.info(s"No auth for $clientId")
-            complete("no auth")
+            complete(AccountResponse.responseNotAuthorized.toJson.prettyPrint)
           }
         }
     }
   }
-  val authRoutes = headerValueByName("Token") { token =>
-    headerValueByName("ClientId") {
-      clientId =>
-        logger.info("Auth with ClientId " + clientId + " token " + token)
-        auth(token, clientId) ~
-        sessionRequiredRoutes(token, clientId)
-    }
-  }
+  val authRoutes = (headerValueByName("Token") & headerValueByName("ClientId")) { (token, clientId) =>
+    logger.info("Auth with ClientId " + clientId + " token " + token)
+    auth(token, clientId) ~
+    sessionRequiredRoutes(token, clientId)
+  } ~
+  complete(StatusCodes.Unauthorized, "No some headers")
+//    headerValueByName("Token") { token =>
+//    headerValueByName("ClientId") {
+//      clientId =>
+//        logger.info("Auth with ClientId " + clientId + " token " + token)
+//        auth(token, clientId) ~
+//        sessionRequiredRoutes(token, clientId)
+//    }
+//  }
   val myRoute = {
     authRoutes ~
     other ~
