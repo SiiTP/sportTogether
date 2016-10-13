@@ -2,9 +2,9 @@
   <option name="biscuits">
     <list />
   </option>
-  <option name="httpMethod" value="GET" />
+  <option name="httpMethod" value="POST" />
   <option name="urlBase" value="http://localhost:8080" />
-  <option name="urlPath" value="/category" />
+  <option name="urlPath" value="event" />
   <option name="headers">
     <list>
       <KeyValuePair>

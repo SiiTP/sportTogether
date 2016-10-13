@@ -7,7 +7,7 @@ import service.RouteServiceActor._
 import akka.util.Timeout
 import entities.db.{EntitiesJsonProtocol, MapCategory, MapEvent, User}
 import entities.db.EntitiesJsonProtocol._
-import response.AccountResponse
+import response.{AccountResponse, EventResponse}
 import service.AccountService.AccountHello
 import service.RouteServiceActor.{IsAuthorized, RouteHello}
 import spray.routing._
@@ -265,7 +265,7 @@ trait RouteService extends HttpService {
               logger.info(s"POST event/ data:$event")
               defaultResponse
             }
-          }
+          } ~ complete(EventResponse.noSomeParameters.toJson.prettyPrint)
         }
     } ~
     pathPrefix("user") {
@@ -337,14 +337,7 @@ trait RouteService extends HttpService {
     sessionRequiredRoutes(token, clientId)
   } ~
   complete(StatusCodes.Unauthorized, "No some headers")
-//    headerValueByName("Token") { token =>
-//    headerValueByName("ClientId") {
-//      clientId =>
-//        logger.info("Auth with ClientId " + clientId + " token " + token)
-//        auth(token, clientId) ~
-//        sessionRequiredRoutes(token, clientId)
-//    }
-//  }
+
   val myRoute = {
     authRoutes ~
     other ~
