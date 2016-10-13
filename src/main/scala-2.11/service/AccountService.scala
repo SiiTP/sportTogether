@@ -12,7 +12,8 @@ import service.AccountService.AccountHello
 import service.RouteServiceActor.{Authorize, IsAuthorized, RouteHello, Unauthorize}
 import spray.json._
 import EntitiesJsonProtocol._
-import dispatch.{_}
+import com.typesafe.scalalogging.Logger
+import dispatch._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
@@ -60,6 +61,8 @@ object AccountService {
 }
 
 class AccountService {
+  val logger = Logger("webApp")
+
   lazy val userDAO = new UserDAO()
   private val _authAccounts = new util.HashMap[String, User]
 
@@ -79,21 +82,21 @@ class AccountService {
       case Some(user) => return Future.successful(AccountResponse.CODE_AUTH_ALREADY)
       case None =>
     }
-    println("token : " + token)
     val auth0ResponseFuture : Future[String] = checkAuth0Token(token)
     val isRightTokenFuture: Future[Boolean] = auth0ResponseFuture map (content => {
-      println("auth0 response success : " + content)
+      logger.info(s"success auth0 response : $content")
       true
     }) recover {
       case exc: Throwable =>
-        println("handle dispath exception. token not right")
+        val message: String = exc.getMessage
+        logger.info(s"not success auth0 authentitication : $message")
         false
     }
     isRightTokenFuture.flatMap({
       case true => {
         userDAO.getByClientId(clientId).flatMap {
           case user: User =>
-            println("user!!")
+            logger.info(s"your clientId already exists. Success!")
             _authAccounts.put(clientId, user.copy())
             Future.successful(MyResponse.CODE_SUCCESS)
         } recoverWith {
@@ -101,40 +104,22 @@ class AccountService {
             println("no user in db, creating")
             userDAO.create(User(clientId, Roles.USER.getRoleId)) map {
               case user =>
+                logger.info(s"your clientId is new. You registered. Success!")
                 _authAccounts.put(clientId, user.copy())
                 MyResponse.CODE_SUCCESS
             } recover {
               case exc: Throwable =>
-                println("not successful creating")
-                exc.printStackTrace()
+                logger.info(s"error when user creates : " + exc.getMessage)
                 MyResponse.CODE_NOT_SUCCESS
             }
-          case _ => Future.successful(1)
+          case exc: Throwable =>
+            logger.info(s"Unhandled error : " + exc.getMessage)
+            exc.printStackTrace()
+            Future.successful(MyResponse.CODE_NOT_SUCCESS)
         }
       }
       case false => Future.successful(MyResponse.CODE_NOT_SUCCESS)
     })
-//    val userFuture: Future[User] = userDAO.getByClientId(clientId)
-//    (for {
-//      isRightToken <- isRightTokenFuture
-//      user <- userFuture
-//    } yield {
-//      println("yield")
-//      isRightToken match {
-//        case true =>
-//          println("case true")
-//          _authAccounts.put(clientId, user.copy())
-//          MyResponse.CODE_SUCCESS
-//        case false =>
-//          println("case false")
-//          MyResponse.CODE_NOT_SUCCESS
-//      }
-//    }) recover {
-//      case exc: NoSuchElementException =>
-//        println("for handle exc. case _")
-//        exc.printStackTrace()
-//        MyResponse.CODE_NOT_SUCCESS
-//    }
   }
 
   def unauthorize(session: String): Int = {
