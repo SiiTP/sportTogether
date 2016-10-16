@@ -4,7 +4,7 @@
   </option>
   <option name="httpMethod" value="POST" />
   <option name="urlBase" value="http://localhost:8080" />
-  <option name="urlPath" value="event" />
+  <option name="urlPath" value="/event" />
   <option name="headers">
     <list>
       <KeyValuePair>
@@ -16,12 +16,16 @@
         <option name="value" value="no-cache" />
       </KeyValuePair>
       <KeyValuePair>
+        <option name="key" value="ClientId" />
+        <option name="value" value="jbTest" />
+      </KeyValuePair>
+      <KeyValuePair>
         <option name="key" value="Token" />
         <option name="value" value="jbTest" />
       </KeyValuePair>
       <KeyValuePair>
-        <option name="key" value="ClientId" />
-        <option name="value" value="jbTest" />
+        <option name="key" value="Content-Type" />
+        <option name="value" value="application/json" />
       </KeyValuePair>
     </list>
   </option>
@@ -32,6 +36,6 @@
   <option name="haveTextToSend" value="false" />
   <option name="haveFileToSend" value="false" />
   <option name="isFileUpload" value="false" />
-  <option name="textToSend" value="" />
+  <option name="textToSend" value="{&quot;name&quot;:&quot;testing&quot;, &quot;description&quot;: &quot;descr&quot;, &quot;categoryId&quot;:1,&quot;longtitude&quot;:53,&quot;latitude&quot;:110, &quot;date&quot;:1495617650064,&quot;maxPeople&quot;:0, &quot;isEnded&quot;: false} " />
   <option name="filesToSend" value="" />
 </RestClientRequest>

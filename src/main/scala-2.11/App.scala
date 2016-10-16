@@ -1,6 +1,3 @@
-import java.lang.Throwable
-import java.util.concurrent.ExecutionException
-
 import akka.actor.{ActorSystem, Props}
 import akka.io.IO
 import akka.pattern.ask
@@ -10,9 +7,6 @@ import entities.db.{DatabaseExecutor, DatabaseHelper}
 import response.MyResponse
 import service._
 import spray.can.Http
-
-case class my(msg: String)
-
 
 import scala.concurrent.duration._
 
@@ -53,9 +47,16 @@ object App extends MyResponse {
 
     val accountService = new AccountService()
     val accountServiceActor = system.actorOf(Props(classOf[AccountServiceActor], accountService), "accountService")
-    val routeServiceActor = system.actorOf(Props(classOf[RouteServiceActor], accountServiceActor,eventServiceActor,categoryServiceActor, fcmService), "routeService")
 
-    IO(Http) ? Http.Bind(routeServiceActor, interface = "localhost", port = port)
+    val routeServiceActor = system.actorOf(Props(classOf[RouteServiceActor], accountServiceActor, eventServiceActor, categoryServiceActor, fcmService), "routeService")
+
+    val future: Future[Any] = IO(Http) ? Http.Bind(routeServiceActor, interface = "localhost", port = port)
+    future.onComplete {
+      case Success(a) =>
+        println("@!@! " + a)
+      case Failure(e) =>
+        e.printStackTrace()
+    }
     logger.info("Init complete!")
   }
 }

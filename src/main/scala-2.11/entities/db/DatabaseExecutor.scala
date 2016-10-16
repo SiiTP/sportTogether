@@ -20,6 +20,7 @@ class DatabaseHelper private(){
     val properties = new Properties()
 //    properties.load(new FileReader(configPath))
     properties.load(stream)
+    println(properties)
     properties.getProperty("db") match {
       case "create" => recreate()
       case _ => None

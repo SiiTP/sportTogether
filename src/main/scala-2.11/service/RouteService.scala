@@ -17,12 +17,10 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future, duration}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import EntitiesJsonProtocol.mapEventFormat
 import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
 
 import ExecutionContext.Implicits.global
-import scala.util
 import scala.util.{Failure, Success, Try}
 
 class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: AskableActorRef,_categoryService: AskableActorRef, _fcmService: AskableActorRef) extends Actor with RouteService {
@@ -214,7 +212,7 @@ trait RouteService extends HttpService {
                   defaultResponse
                 }
             }
-          }
+          }  ~ complete("no required parameters")
       }
   }
 
@@ -310,7 +308,7 @@ trait RouteService extends HttpService {
         (headerValueByName("Token") & headerValueByName("ClientId123")) { (t, c) =>
           complete(s"t: $t c: $c")
         } ~
-        complete(StatusCodes.Unauthorized, "No some headers")
+        complete(StatusCodes.Unauthorized, "No some headers!@!@")
       }
     }
   }
@@ -339,9 +337,9 @@ trait RouteService extends HttpService {
   complete(StatusCodes.Unauthorized, "No some headers")
 
   val myRoute = {
-    authRoutes ~
+    gcm ~
     other ~
-    gcm
+    authRoutes
   }
 }
 

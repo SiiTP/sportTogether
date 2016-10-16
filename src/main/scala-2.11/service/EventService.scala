@@ -2,8 +2,9 @@ package service
 
 import akka.actor.Actor
 import akka.actor.Actor.Receive
+import com.typesafe.scalalogging.Logger
 import dao.EventsDAO
-import entities.db.{UserReport, User, MapEvent}
+import entities.db.{MapEvent, User, UserReport}
 import response.{CategoryResponse, EventResponse}
 import service.EventService._
 
@@ -12,6 +13,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 import response.MyResponse._
 import entities.db.EntitiesJsonProtocol._
+
 import scala.concurrent.duration._
 /**
   * Created by ivan on 25.09.16.
@@ -58,6 +60,8 @@ object EventService {
   case class GetEventsByCategoryId(id: Int)
 }
 class EventServiceActor(eventService: EventService) extends Actor {
+  val logger = Logger("webApp")
+
   override def receive = {
     case AddEvent(event,user) =>
       val response = eventService.addSimpleEvent(event,user)
@@ -70,8 +74,13 @@ class EventServiceActor(eventService: EventService) extends Actor {
       }
     case GetEvents() =>
       val sended = sender()
-      eventService.getEventsAround.onSuccess {
-        case result => sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
+      eventService.getEventsAround.onComplete {
+        case Success(result) =>
+          logger.info(s"success when get events : " + result)
+          sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
+        case Failure(e) =>
+          logger.info(s"fail when get events : " + e.getMessage)
+          sended ! EventResponse.responseSuccess[MapEvent](None).toJson.prettyPrint
       }
     case GetUserEvents(id) =>
       val sended = sender()

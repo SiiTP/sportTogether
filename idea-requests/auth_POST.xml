@@ -3,7 +3,7 @@
     <list />
   </option>
   <option name="httpMethod" value="POST" />
-  <option name="urlBase" value="http://localhost:8080/auth" />
+  <option name="urlBase" value="http://localhost:8080" />
   <option name="urlPath" value="/auth" />
   <option name="headers">
     <list>
