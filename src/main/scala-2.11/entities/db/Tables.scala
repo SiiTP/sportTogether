@@ -17,7 +17,18 @@ object Tables {
 }
 
 case class MapCategory(name: String, id: Option[Int] = None)
-case class MapEvent(name: String, categoryId: Int, latitude: Double, longtitude: Double, date: Timestamp, maxPeople: Int = 0, reports: Option[Int] = None, description: Option[String] = None,isEnded: Boolean = false, userId: Option[Int] = None, id: Option[Int] = None)
+case class MapEvent(
+                     name: String,
+                     categoryId: Int,
+                     latitude: Double,
+                     longtitude: Double,
+                     date: Timestamp,
+                     maxPeople: Int = 0,
+                     reports: Option[Int] = None,
+                     description: Option[String] = None,
+                     isEnded: Boolean = false,
+                     userId: Option[Int] = None,
+                     id: Option[Int] = None)
 case class User(clientId: String, role: Int, id: Option[Int] = None)
 case class UserReport(userId: Int, eventId: Int)
 case class UserJoinEvent(userId: Int, deviceToken: String, eventId: Int)

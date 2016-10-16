@@ -41,7 +41,6 @@ libraryDependencies ++= {
     "org.specs2"                    %%  "specs2-core"           % "2.3.11"  % "test",
     "org.jetbrains"                 %   "annotations"           % "15.0",
     "mysql"                         %   "mysql-connector-java"  % "5.1.36",
-    "com.typesafe.slick"            %   "slick_2.11"            % "3.1.1",
-    "org.slf4j"                     %   "slf4j-nop"             % "1.6.4"
+    "com.typesafe.slick"            %   "slick_2.11"            % "3.1.1"
   )
 }

@@ -7,9 +7,9 @@
             <!-- rollover daily -->
             <fileNamePattern>log/history/mylog-%d{yyyy-MM-dd}.%i.txt</fileNamePattern>
             <!-- each file should be at most 100MB, keep 60 days worth of history, but at most 20GB -->
-            <maxFileSize>100MB</maxFileSize>
-            <maxHistory>60</maxHistory>
-            <totalSizeCap>20GB</totalSizeCap>
+            <maxFileSize>5MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
         </rollingPolicy>
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss} [%-5level] %-30.-30C %logger %msg%n</pattern>
@@ -21,9 +21,9 @@
             <!-- rollover daily -->
             <fileNamePattern>log/history/slick/slick_log-%d{yyyy-MM-dd}.%i.txt</fileNamePattern>
             <!-- each file should be at most 100MB, keep 60 days worth of history, but at most 20GB -->
-            <maxFileSize>100MB</maxFileSize>
-            <maxHistory>60</maxHistory>
-            <totalSizeCap>20GB</totalSizeCap>
+            <maxFileSize>5MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
         </rollingPolicy>
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss} [%-5level] %logger %msg%n</pattern>

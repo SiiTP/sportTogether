@@ -1,42 +1,27 @@
 package service
 
-import java.security.MessageDigest
-import java.time.Instant
-import java.util.Date
-
 import akka.actor._
 import akka.pattern.AskableActorRef
-import akka.util.Timeout
 import com.typesafe.scalalogging.Logger
-import entities.db.{EntitiesJsonProtocol, MapEvent, User}
-import org.slf4j.MarkerFactory
-import org.slf4j.helpers.BasicMarker
-import response.{AccountResponse, MyResponse}
-import service.AccountService.AccountHello
 import service.RouteServiceActor._
 import akka.util.Timeout
-import entities.db.{MapCategory, EntitiesJsonProtocol, MapEvent, User}
+import entities.db.{EntitiesJsonProtocol, MapCategory, MapEvent, User}
 import entities.db.EntitiesJsonProtocol._
-import response.AccountResponse
+import response.{AccountResponse, EventResponse}
 import service.AccountService.AccountHello
-import service.RouteServiceActor.{InitEventService, IsAuthorized, RouteHello}
-import spray.http.{StatusCodes, HttpCookie}
+import service.RouteServiceActor.{IsAuthorized, RouteHello}
 import spray.routing._
-import spray.routing.directives.{OnCompleteFutureMagnet, OnSuccessFutureMagnet}
 
-import scala.collection.Searching.Found
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future, duration}
-
-import scala.concurrent.{ExecutionContext, Await, Future, duration}
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import EntitiesJsonProtocol.mapEventFormat
+import spray.http.StatusCodes
 import spray.httpx.SprayJsonSupport._
+
 import ExecutionContext.Implicits.global
-import scala.util
-import scala.util.{Try, Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: AskableActorRef,_categoryService: AskableActorRef, _fcmService: AskableActorRef, _joinEventService: AskableActorRef) extends Actor with RouteService {
   implicit lazy val timeouts = Timeout(10.seconds)
@@ -54,9 +39,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
   override def sendIsAuthorized(clientId: String) = {
     accountServiceRef ? IsAuthorized(clientId)
   }
-
   override def sendAuthorize(clientId: String, token: String): Future[Any] = {
-    println("send authorize: clientId: " + clientId + " token: " + token)
     accountServiceRef ? Authorize(token, clientId)
   }
   override def sendUnauthorize(session: String): Future[Any] = {
@@ -107,7 +90,7 @@ object RouteServiceActor {
   case class InitEventService(service: ActorRef)
 }
 
-trait RouteService extends HttpService with AccountResponse {
+trait RouteService extends HttpService {
   val logger = Logger("webApp")
 
   def accountServiceRef: AskableActorRef
@@ -148,34 +131,39 @@ trait RouteService extends HttpService with AccountResponse {
   def getStringResponse(data: Any) = data.asInstanceOf[String]
 
   //т.к. везде одинаковые ответы(строки), то вынес все в одну функцию
-  def defaultResponse(a: Try[Any]): Route = a match {
-    case Success(result) =>
-      val stringResult = getStringResponse(result)
-      logger.debug(stringResult)
-      complete(stringResult)
-    case Failure(t) =>
-      logger.info(t.getMessage)
-      complete(t.getMessage)
+  def defaultResponse(a: Try[Any], logMsg: String): Route = {
+    logMsg match {
+      case "" => println("empty log")
+      case s => logger.info(s)
+      case _ =>
+    }
+    a match {
+      case Success(result) =>
+        val stringResult = getStringResponse(result)
+        logger.debug(stringResult)
+        complete(stringResult)
+      case Failure(t) =>
+        logger.info(t.getMessage)
+        complete(t.getMessage)
+    }
   }
+
+  def defaultResponse(a: Try[Any]): Route = defaultResponse(a, "")
 
   def auth(token: String, clientId: String) = pathPrefix("auth") {
     get {
-
-      onComplete(sendIsAuthorized(clientId)) {
-        logger.info(s"GET /auth  clientId: $clientId and token: $token")
-        defaultResponse
+      onComplete(sendIsAuthorized(clientId)) { tryAny =>
+        defaultResponse(tryAny, s"GET /auth  clientId: $clientId and token: $token")
       }
     } ~
       delete {
-        onComplete(sendUnauthorize(clientId)) {
-          logger.info(s"DELETE /auth  clientId: $clientId and token: $token")
-          defaultResponse
+        onComplete(sendUnauthorize(clientId)) { tryAny =>
+          defaultResponse(tryAny, s"DELETE /auth  clientId: $clientId and token: $token")
         }
       } ~
       post {
-        onComplete(sendAuthorize(clientId, token)) {
-          logger.info(s"POST /auth  clientId: $clientId and token: $token")
-          defaultResponse
+        onComplete(sendAuthorize(clientId, token)) { tryAny =>
+          defaultResponse(tryAny, s"POST /auth  clientId: $clientId and token: $token")
         }
       }
   }
@@ -227,7 +215,7 @@ trait RouteService extends HttpService with AccountResponse {
                   defaultResponse
                 }
             }
-          }
+          }  ~ complete("no required parameters")
       }
   }
 
@@ -287,7 +275,7 @@ trait RouteService extends HttpService with AccountResponse {
               logger.info(s"POST event/ data:$event")
               defaultResponse
             }
-          }
+          } ~ complete(EventResponse.noSomeParameters.toJson.prettyPrint)
         }
     } ~
     pathPrefix("user") {
@@ -328,42 +316,42 @@ trait RouteService extends HttpService with AccountResponse {
       path("world") {
         complete("Hello world!")
       } ~
-        parameters('foo.?) { (foo) =>
-          val str = foo.getOrElse("not defined")
-          complete(s"Foo is $str")
-        }
+      path("token") {
+        (headerValueByName("Token") & headerValueByName("ClientId123")) { (t, c) =>
+          complete(s"t: $t c: $c")
+        } ~
+        complete(StatusCodes.Unauthorized, "No some headers!@!@")
+      }
     }
   }
   def getRoute = myRoute
-  def sessionRequiredRoutes(token: String,clientId:String) = {
+  def sessionRequiredRoutes(token: String, clientId: String) = {
     onSuccess(sendIsAuthorized(clientId)){
       case result =>
         logger.info("Is Authorized " + result)
-        JsonParser(result.asInstanceOf[String]).convertTo[ResponseSuccess[User]].data match {
+        JsonParser(result.asInstanceOf[String]).convertTo[AccountResponse.ResponseSuccess[User]].data match {
           case Some(u) =>
             logger.debug(s"USER: $u")
             event(u) ~
             category(u)
           case None => {
             logger.info(s"No auth for $clientId")
-            complete("no auth")
+            complete(AccountResponse.responseNotAuthorized.toJson.prettyPrint)
           }
         }
     }
   }
+  val authRoutes = (headerValueByName("Token") & headerValueByName("ClientId")) { (token, clientId) =>
+    logger.info("Auth with ClientId " + clientId + " token " + token)
+    auth(token, clientId) ~
+    sessionRequiredRoutes(token, clientId)
+  } ~
+  complete(StatusCodes.Unauthorized, "No some headers")
 
-  val authRoutes = headerValueByName("Token") { token =>
-    headerValueByName("ClientId") {
-      clientId =>
-        logger.info("Auth with ClientId " + clientId + " token " + token)
-        auth(token,clientId) ~
-        sessionRequiredRoutes(token,clientId)
-    }
-  }
   val myRoute = {
-    authRoutes ~
+    gcm ~
     other ~
-    gcm
+    authRoutes
   }
 }
 
