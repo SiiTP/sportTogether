@@ -60,6 +60,7 @@ object App extends MyResponse {
     implicit val timeout = Timeout(5.seconds)
 
     val fcmService =  system.actorOf(Props(classOf[FcmServiceActor]),"fcmService")
+    val joinService = system.actorOf(Props(classOf[InMemoryEventServiceActor], fcmService),"joinService")
     // create and start our service actor
     val eventService = new EventService()
     val eventServiceActor = system.actorOf(Props(classOf[EventServiceActor],eventService),"eventService")
@@ -69,7 +70,7 @@ object App extends MyResponse {
 
     val accountService = new AccountService()
     val accountServiceActor = system.actorOf(Props(classOf[AccountServiceActor], accountService), "accountService")
-    val routeServiceActor = system.actorOf(Props(classOf[RouteServiceActor], accountServiceActor,eventServiceActor,categoryServiceActor, fcmService), "routeService")
+    val routeServiceActor = system.actorOf(Props(classOf[RouteServiceActor], accountServiceActor,eventServiceActor,categoryServiceActor, fcmService, joinService), "routeService")
 
 //    var port = 8080
 //    args(0) match {

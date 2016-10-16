@@ -33,6 +33,9 @@ class EventService {
   def addSimpleEvent(event: MapEvent, user: User) = {
     eventsDAO.create(event.copy(userId = user.id))
   }
+  def joinEvent(id: Int, user: User, deviceToken: String) = {
+
+  }
   def getUserEvents(user: User) = {
     eventsDAO.eventsByUserId(user.id.getOrElse(0))
   }

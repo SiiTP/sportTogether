@@ -30,7 +30,7 @@ class DatabaseHelper private(){
     this.synchronized {
       if(!isCreated){
         Await.result(db.run(DBIO.seq(
-          (users.schema ++ events.schema ++ categories.schema ++ userReports.schema).create
+          (users.schema ++ events.schema ++ categories.schema ++ userReports.schema ++ eventUsers.schema).create
         )), Duration.Inf)
         println("DATABASE CREATED")
       }
@@ -48,7 +48,8 @@ class DatabaseHelper private(){
       users      . delete,
       events     . delete,
       categories . delete,
-      userReports. delete
+      userReports. delete,
+      eventUsers . delete
     )), Duration.Inf)
 
   def drop(): Unit ={

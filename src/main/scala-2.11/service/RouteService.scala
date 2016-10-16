@@ -38,7 +38,7 @@ import ExecutionContext.Implicits.global
 import scala.util
 import scala.util.{Try, Failure, Success}
 
-class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: AskableActorRef,_categoryService: AskableActorRef, _fcmService: AskableActorRef) extends Actor with RouteService {
+class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: AskableActorRef,_categoryService: AskableActorRef, _fcmService: AskableActorRef, _joinEventService: AskableActorRef) extends Actor with RouteService {
   implicit lazy val timeouts = Timeout(10.seconds)
   def actorRefFactory = context
   def accountServiceRef: AskableActorRef = _accountServiceRef
@@ -90,8 +90,10 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
   override def sendReportEvent(id: Int, user: User) = _eventService ? EventService.ReportEvent(id, user)
   override def sendGetEventsByCategoryId(id: Int) = _eventService ? EventService.GetEventsByCategoryId(id)
   override def sendGetEventsByCategoryName(name: String) = _categoryService ? CategoryService.GetEventsByCategoryName(name)
+  override def sendUserJoinEvent(user: User, eventId: Int, token: String): Future[Any] = _joinEventService ? InMemoryEventService.AddUserToEvent(eventId, user, token)
 
-  override def testMessageSend(token: String): Future[Any] = _fcmService ? FcmService.SendMessage(token,JsObject("hello" -> JsString("world"), "id" -> JsNumber(5), "bools" -> JsBoolean(true)))
+  override def testMessageSend(token: String): Future[Any] = _fcmService ? FcmService.SendMessage(Array(token),JsObject("hello" -> JsString("world"), "id" -> JsNumber(5), "bools" -> JsBoolean(true)))
+
 }
 
 object RouteServiceActor {
@@ -141,6 +143,7 @@ trait RouteService extends HttpService with AccountResponse {
   def sendReportEvent(id: Int, user: User): Future[Any]
 
   def sendUpdateEvents(event: MapEvent, user: User): Future[Any]
+  def sendUserJoinEvent(user: User, eventId: Int, token: String): Future[Any]
 
   def getStringResponse(data: Any) = data.asInstanceOf[String]
 
@@ -242,24 +245,33 @@ trait RouteService extends HttpService with AccountResponse {
               }
             }
         } ~
-          pathEnd {
-            get {
-              onComplete(sendGetEvent(id)) {
-                logger.info(s"GET event/$id ")
+        path("join"){
+          get {
+            parameter("token".as[String]) {
+              token =>
+                onComplete(sendUserJoinEvent(user,id,token)) {
+                  defaultResponse//"eip4vuQhWQU:APA91bEFEEZKOAUBoKwa3RsjU7oTcKTVbWdZbqZ5JB4d5vjJH7H8kFN3hKWKuOovhShpLVt6asIsiWVZdLZvsDHAraftWgltTNMixG7TmQwphH-vjQ6TVMC-QxZs6FZBM8tCJ7O2Qa8v"
+                }
+            }
+          }
+        } ~
+        pathEnd {
+          get {
+            onComplete(sendGetEvent(id)) {
+              logger.info(s"GET event/$id ")
+              defaultResponse
+            }
+          } ~
+          put {
+            entity(as[MapEvent]) { event =>
+
+              onComplete(sendUpdateEvents(event.copy(userId = user.id, id = Some(id)), user)) {
+                logger.info(s"PUT event/$id data:$event")
                 defaultResponse
               }
-            } ~
-              put {
-                entity(as[MapEvent]) { event =>
-
-                  onComplete(sendUpdateEvents(event.copy(userId = user.id, id = Some(id)), user)) {
-                    logger.info(s"PUT event/$id data:$event")
-                    defaultResponse
-                  }
-                }
-              }
+            }
           }
-
+        }
     } ~
     pathEnd {
       get {
@@ -339,6 +351,7 @@ trait RouteService extends HttpService with AccountResponse {
         }
     }
   }
+
   val authRoutes = headerValueByName("Token") { token =>
     headerValueByName("ClientId") {
       clientId =>
