@@ -24,7 +24,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int]{
   override def update(r: MapEvent): Future[Int] = {
 //    val query = table.filter(_.id === r.id)
     val query = for {c <- table if c.id === r.id} yield (c.date, c.description, c.latitude, c.longtitude, c.isEnded, c.catId, c.userId, c.name)
-    val action = query.update((r.date, r.description.get, r.latitude, r.longtitude, r.isEnded, r.categoryId, r.userId.get, r.name))
+    val action = query.update((r.date, r.description, r.latitude, r.longtitude, r.isEnded, r.categoryId, r.userId.get, r.name))
     execute(action)
   }
 

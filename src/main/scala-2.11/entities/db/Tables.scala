@@ -64,7 +64,7 @@ class MapCategories(tag:Tag) extends Table[MapCategory](tag,"category") {
 class MapEvents(tag:Tag) extends Table[MapEvent](tag,"events") {
   def id = column[Int]("id",O.PrimaryKey,O.AutoInc)
   def name = column[String]("name")
-  def description = column[String]("description")
+  def description = column[Option[String]]("description")
   def catId = column[Int]("cat_id")
   def userId = column[Int]("user_id")
   def maxPeople = column[Int]("people")
@@ -75,7 +75,7 @@ class MapEvents(tag:Tag) extends Table[MapEvent](tag,"events") {
   def longtitude = column[Double]("longtitude")
   def mapCategory = foreignKey("cat_fk",catId,Tables.categories)(_.id)
   def mapUser = foreignKey("user_fk",userId,Tables.users)(_.id)
-  def * = (name, catId, latitude, longtitude, date,  maxPeople, report.?, description.?, isEnded, userId.?, id.?) <> (MapEvent.tupled,MapEvent.unapply)
+  def * = (name, catId, latitude, longtitude, date,  maxPeople, report.?, description, isEnded, userId.?, id.?) <> (MapEvent.tupled,MapEvent.unapply)
 }
 
 class Users(tag:Tag) extends Table[User](tag,"user"){

@@ -6,7 +6,7 @@ import com.typesafe.scalalogging.Logger
 import dao.{EventsDAO, EventUsersDAO}
 import entities.db.{UserJoinEvent, User, MapEvent}
 import response.{JoinServiceResponse, EventResponse}
-import service.InMemoryEventService.AddUserToEvent
+import service.JoinEventService.AddUserToEvent
 import entities.db.EntitiesJsonProtocol._
 import spray.json.{JsNumber, JsString, JsObject}
 import scala.collection.mutable
@@ -16,10 +16,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 /**
   * Created by ivan on 12.10.16.
   */
-class InMemoryEventService {
+class JoinEventService {
   private val logger = Logger("webApp")
-  private val events = new mutable.HashMap[MapEvent,mutable.Seq[String]]
-  private val users = new mutable.HashMap[User,String]
   private val eventUsersDAO = new EventUsersDAO()
   private val eventsDAO = new EventsDAO()
 
@@ -29,37 +27,19 @@ class InMemoryEventService {
     eventUsersDAO.create(userJoinEvent)
   }
 
-  def isExist(event: MapEvent) = events.contains(event)
+  def isExist(event: MapEvent) = ???
   def isUserAlreadyJoined(user: User, eid: Int) = {
     eventUsersDAO.isAlreadyJoined(UserJoinEvent(user.id.get, null, eid))
   }
-  def leaveEvent(user: User, event: MapEvent) = {
-    users.get(user) match {
-      case Some(token) =>
-        events.get(event) match {
-          case Some(res) =>
-            logger.debug(s"""leaving event $event by user $user """)
-            val newArr = res.filter(!_.equals(token))
-            logger.debug("filtered event users " + newArr)
-            events.put(event, newArr)
-            users.remove(user)
-          case None =>
-        }
-      case None =>
-    }
-  }
+  def leaveEvent(user: User, event: MapEvent) = ???
   def getTokens(eId: Int) = {
     eventUsersDAO.getById(eId)
   }
   def update(event: MapEvent) = {
     logger.debug("updating event: " + event)
-    events.get(event) match {
-      case Some(result) =>
-        logger.debug("found event users " + result)
-        events.put(event,result)
-      case None =>
-    }
+    //todo
   }
+
   def isFullEvent(eventId: Int) = {
     eventsDAO.get(eventId).zip(eventUsersDAO.getById(eventId)).map(tuple => {
       logger.debug(s"eventId: $eventId size ${tuple._1.maxPeople} , events current peoples ${tuple._2.size}")
@@ -68,10 +48,14 @@ class InMemoryEventService {
   }
 }
 
-object InMemoryEventService {
+object JoinEventService {
   case class AddUserToEvent(eventId: Int, user: User, token: String)
 }
 
+/**
+  * тут кароче небольшая обертка над sender(), используется в map ниже
+  * @param sender
+  */
 class SenderHelper(sender: ActorRef) {
   var isSendedAnswer = false
   def answer(message: String) = {
@@ -81,9 +65,9 @@ class SenderHelper(sender: ActorRef) {
     }
   }
 }
-class InMemoryEventServiceActor(_fcmService: ActorRef) extends Actor {
+class JoinEventServiceActor(_fcmService: ActorRef) extends Actor {
   private val logger = Logger("webApp")
-  private val service = new InMemoryEventService()
+  private val service = new JoinEventService()
   override def receive: Receive = {
     case AddUserToEvent(ev,user, token) =>
       val sended = new SenderHelper(sender())
