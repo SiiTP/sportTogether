@@ -72,7 +72,7 @@ class EventServiceActor(eventService: EventService, remingderServiceActor: Actor
       response.onComplete {
         case Success(result) =>
           sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
-          reminderServiceActor ! ReminderService.Add(result)
+          remingderServiceActor ! ReminderService.Add(result)
         case Failure(t) =>
           t.printStackTrace()
           sended ! EventResponse.unexpectedError.toJson.prettyPrint

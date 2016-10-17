@@ -38,7 +38,9 @@ class ReminderService(_fcmService: ActorRef) extends Thread{
 
   override def run(): Unit = {
     while (!Thread.interrupted()) {
-      val workArray = array.filter(_.date.getTime >= LocalDateTime.now().minusHours(1).toEpochSecond(ZoneOffset.UTC))
+      val workArray = array.filter(event => {
+        event.date.toLocalDateTime.toInstant(ZoneOffset.UTC).toEpochMilli <= LocalDateTime.now().plusHours(1).toInstant(ZoneOffset.UTC).toEpochMilli
+      })
       logger.debug("New incoming events: " + workArray.map(_.id))
       workArray.map(item => (item.id.get,item.description, item.name))
         .foreach( (i:(Int,Option[String],String)) => {
