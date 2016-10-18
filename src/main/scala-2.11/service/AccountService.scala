@@ -1,6 +1,5 @@
 package service
 
-import java.lang.Throwable
 import java.util
 
 import akka.actor.{Actor, ActorRef}

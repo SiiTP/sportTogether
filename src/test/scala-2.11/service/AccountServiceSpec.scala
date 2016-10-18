@@ -1,15 +1,12 @@
 package service
 
 import java.io.File
-import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorSystem, Props}
 import akka.pattern.AskableActorRef
 import response.AccountResponse
 import service.RouteServiceActor.{Authorize, IsAuthorized, Unauthorize}
-import spray.testkit.Specs2RouteTest
 
-import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 import akka.util.Timeout
 import dao.UserDAO
@@ -21,7 +18,6 @@ import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 
 import entities.db._
 
-import org.specs2.execute.{AsResult, ResultExecution}
 
 import scala.concurrent.{Await, ExecutionContext, Future}
 

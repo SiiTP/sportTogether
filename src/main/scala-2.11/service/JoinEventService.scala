@@ -1,14 +1,15 @@
 package service
 
-import akka.actor.{ActorRef, Actor}
+import akka.actor.{Actor, ActorRef}
 import akka.actor.Actor.Receive
 import com.typesafe.scalalogging.Logger
-import dao.{EventsDAO, EventUsersDAO}
-import entities.db.{UserJoinEvent, User, MapEvent}
-import response.{JoinServiceResponse, EventResponse}
-import service.JoinEventService.AddUserToEvent
+import dao.{EventUsersDAO, EventsDAO}
+import entities.db.{MapEvent, User, UserJoinEvent}
+import response.{EventResponse, JoinServiceResponse, MyResponse}
+import service.JoinEventService.{AddUserToEvent, GetEventsOfUser}
 import entities.db.EntitiesJsonProtocol._
-import spray.json.{JsNumber, JsString, JsObject}
+import spray.json.{JsNumber, JsObject, JsString}
+
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -25,6 +26,17 @@ class JoinEventService {
   def add(userJoinEvent: UserJoinEvent) = {
     logger.debug(s"add ${userJoinEvent.userId} to event ${userJoinEvent.eventId} , token:${userJoinEvent.deviceToken}")
     eventUsersDAO.create(userJoinEvent)
+  }
+
+  def getEventsOfUser(user: User): Future[Seq[MapEvent]] = {
+
+    eventUsersDAO.getEventsOfUser(user).flatMap {
+      case userEvents => Future.successful(userEvents)
+    } recoverWith {
+      case e: Throwable =>
+        logger.info(s"error of userEventsDAO : " + e.getMessage)
+        Future.successful(Seq.empty[MapEvent])
+    }
   }
 
   def isExist(event: MapEvent) = ???
@@ -50,6 +62,7 @@ class JoinEventService {
 
 object JoinEventService {
   case class AddUserToEvent(eventId: Int, user: User, token: String)
+  case class GetEventsOfUser(user: User)
 }
 
 /**
@@ -69,7 +82,7 @@ class JoinEventServiceActor(_fcmService: ActorRef) extends Actor {
   private val logger = Logger("webApp")
   private val service = new JoinEventService()
   override def receive: Receive = {
-    case AddUserToEvent(ev,user, token) =>
+    case AddUserToEvent(ev, user, token) =>
       val sended = new SenderHelper(sender())
       val userJoinEvent = UserJoinEvent(user.id.get, token, ev)
       logger.debug("trying to add: " + userJoinEvent)
@@ -84,17 +97,26 @@ class JoinEventServiceActor(_fcmService: ActorRef) extends Actor {
         }
         case Failure(t) =>
           sended.answer(JoinServiceResponse.unexpectedError.toJson.prettyPrint)
+      }
 
-
+    case GetEventsOfUser(user) =>
+      val sended = sender()
+      service.getEventsOfUser(user).onComplete {
+        case Success(result) =>
+          println("### " + result)
+          sended ! JoinServiceResponse.responseSuccess[Seq[MapEvent]](Some(result)).toJson.prettyPrint
+        case Failure(e) =>
+          e.printStackTrace()
+          sended ! JoinServiceResponse.unexpectedError.toJson.prettyPrint
       }
 
   }
   private def sendNotifyToEventUsers(eId: Int, user: User) = {
     service.getTokens(eId).onSuccess {
       case tokens =>
-        val obj = new JsObject(Map(("name" -> JsNumber(user.id.get)),("clientId" -> JsString(user.clientId)) ))
+        val obj = new JsObject(Map(("name" -> JsNumber(user.id.get)), ("clientId" -> JsString(user.clientId)) ))
 
-        _fcmService ! FcmService.SendMessage(tokens.map(_.deviceToken).seq,obj)
+        _fcmService ! FcmService.SendMessage(tokens.map(_.deviceToken).seq, obj)
     }
   }
   private def isFullChain(result: Boolean)(userJoinEvent: UserJoinEvent, sender: SenderHelper): Future[Boolean] = {
