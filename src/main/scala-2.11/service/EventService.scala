@@ -1,6 +1,6 @@
 package service
 
-import akka.actor.Actor
+import akka.actor.{ActorRef, Actor}
 import akka.actor.Actor.Receive
 import com.typesafe.scalalogging.Logger
 import dao.EventsDAO
@@ -62,7 +62,7 @@ object EventService {
   case class ReportEvent(id: Int, user: User)
   case class GetEventsByCategoryId(id: Int)
 }
-class EventServiceActor(eventService: EventService) extends Actor {
+class EventServiceActor(eventService: EventService, remingderServiceActor: ActorRef) extends Actor {
   val logger = Logger("webApp")
 
   override def receive = {
@@ -70,7 +70,9 @@ class EventServiceActor(eventService: EventService) extends Actor {
       val response = eventService.addSimpleEvent(event,user)
       val sended = sender()
       response.onComplete {
-        case Success(result) => sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
+        case Success(result) =>
+          sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
+          remingderServiceActor ! ReminderService.Add(result)
         case Failure(t) =>
           t.printStackTrace()
           sended ! EventResponse.unexpectedError.toJson.prettyPrint

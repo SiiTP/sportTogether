@@ -38,10 +38,14 @@ object App extends MyResponse {
     implicit val timeout = Timeout(5.seconds)
 
     val fcmService =  system.actorOf(Props(classOf[FcmServiceActor]),"fcmService")
+    val reminderService = new ReminderService(fcmService)
+    reminderService.start()
+    val reminderServiceActor = system.actorOf(Props(classOf[ReminderServiceActor],reminderService),"reminderService")
+
     val joinService = system.actorOf(Props(classOf[JoinEventServiceActor], fcmService),"joinService")
     // create and start our service actor
     val eventService = new EventService()
-    val eventServiceActor = system.actorOf(Props(classOf[EventServiceActor],eventService),"eventService")
+    val eventServiceActor = system.actorOf(Props(classOf[EventServiceActor],eventService, reminderServiceActor),"eventService")
 
     val categoryService = new CategoryService()
     val categoryServiceActor = system.actorOf(Props(classOf[CategoryServiceActor],categoryService),"categoryService")
