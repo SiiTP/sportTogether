@@ -2,12 +2,9 @@ package dao
 
 import com.typesafe.scalalogging.Logger
 import entities.db._
-import slick.dbio
-import slick.dbio.DBIOAction
 import slick.driver.MySQLDriver.api._
 
 import scala.concurrent.Future
-import scala.util.Success
 import scala.concurrent.ExecutionContext.Implicits.global
 /**
   * Created by ivan on 15.10.16.
@@ -43,9 +40,7 @@ class EventUsersDAO extends DatabaseDAO[UserJoinEvent, Int]{
     val seq = for {
       (e, rel) <- tableEvent join table on (_.id === _.eventId ) if rel.userId === idUser
     } yield e
-//    val query = tableEvent join table on(_.id === _.eventId)
     execute(seq.result)
-//    execute(query.result).map((seq: Seq[(MapEvent, UserJoinEvent)]) => seq.map(tuple => tuple._1))
   }
 
   override def get(r: Int): Future[UserJoinEvent] = ???

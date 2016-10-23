@@ -2,11 +2,12 @@ package dao
 
 import slick.driver.MySQLDriver.api._
 import entities.db._
-import slick.jdbc.{PositionedResult, GetResult}
+import slick.jdbc.{GetResult, PositionedResult}
 
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future, duration}
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{Success, Failure}
+import scala.concurrent.duration.Duration
+import scala.util.{Failure, Success}
 
 /**
   * Created by ivan on 19.09.16.
@@ -52,8 +53,51 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int]{
     execute(table.filter(_.userId === id).result)
   }
   def allEvents() = {
-    execute(table.result)
+    execute(table.sortBy(_.report).result)
   }
+
+  def allEventsWithPeople(): Future[Seq[MapEventAdapter]] = {
+    val result: Future[Seq[MapEvent]] = execute(table.sortBy(_.report).result)
+//    name: String,
+//    categoryId: Int,
+//    latitude: Double,
+//    longtitude: Double,
+//    date: Timestamp,
+//    nowPeople: Int = 0,
+//    maxPeople: Int = 0,
+//    reports: Option[Int] = None,
+//    description: Option[String] = None,
+//    isEnded: Boolean = false,
+//    userId: Option[Int] = None,
+//    id: Option[Int] = None
+    result.map(seq => seq.map(mapEvent => MapEventAdapter(
+      mapEvent.name,
+      mapEvent.categoryId,
+      mapEvent.latitude,
+      mapEvent.longtitude,
+      mapEvent.date,
+      getCountUsersInEvent(mapEvent.id.getOrElse(0)),
+      mapEvent.maxPeople,
+      mapEvent.reports,
+      mapEvent.description,
+      mapEvent.isEnded,
+      mapEvent.userId,
+      mapEvent.id
+    )))
+  }
+
+  def getCountUsersInEvent(idEvent: Int) = {
+    val countFuture: Future[Int] = execute(Tables.eventUsers.filter(_.eventId === idEvent).countDistinct.result)
+    val countSuccessFuture = countFuture.recoverWith {
+      case e: Throwable =>
+        println(e.getMessage)
+        Future.successful(0)
+    }
+    val count: Int = Await.result(countSuccessFuture, Duration(2, duration.SECONDS))
+    println("count of event " + idEvent + " : " + count)
+    count
+  }
+
   def getEventsByCategoryName(categoryName: String) = {
     val query = table join Tables.categories on (_.catId === _.id)
     execute(query.filter(_._2.name === categoryName).result)

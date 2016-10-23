@@ -28,7 +28,24 @@ case class MapEvent(
                      description: Option[String] = None,
                      isEnded: Boolean = false,
                      userId: Option[Int] = None,
-                     id: Option[Int] = None)
+                     id: Option[Int] = None
+                   )
+
+case class MapEventAdapter(
+                            name: String,
+                            categoryId: Int,
+                            latitude: Double,
+                            longtitude: Double,
+                            date: Timestamp,
+                            nowPeople: Int = 0,
+                            maxPeople: Int = 0,
+                            reports: Option[Int] = None,
+                            description: Option[String] = None,
+                            isEnded: Boolean = false,
+                            userId: Option[Int] = None,
+                            id: Option[Int] = None
+                          )
+
 case class User(clientId: String, role: Int, id: Option[Int] = None)
 case class UserReport(userId: Int, eventId: Int)
 case class UserJoinEvent(userId: Int, deviceToken: String, eventId: Int)
@@ -42,6 +59,7 @@ object EntitiesJsonProtocol extends DefaultJsonProtocol {
   implicit val userFormat = jsonFormat3(User)
   implicit val eventUsersFormat = jsonFormat3(UserJoinEvent)
   implicit val mapEventFormat = jsonFormat11(MapEvent)
+  implicit val mapEventAdapterFormat = jsonFormat12(MapEventAdapter)
   implicit val mapCategoryFormat = jsonFormat2(MapCategory)
   implicit val userReportFormat = jsonFormat2(UserReport)
 }

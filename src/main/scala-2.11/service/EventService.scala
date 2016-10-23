@@ -42,7 +42,7 @@ class EventService {
     eventsDAO.eventsByUserId(user.id.getOrElse(0))
   }
   def getEventsAround = {
-    eventsDAO.allEvents()
+    eventsDAO.allEventsWithPeople()
   }
   def getCategoryEvents(id: Int) = eventsDAO.eventsByCategoryId(id)
   def getUserEvents(id: Int) = eventsDAO.eventsByUserId(id)
