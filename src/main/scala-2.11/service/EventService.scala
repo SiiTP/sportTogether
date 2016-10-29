@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, Actor}
 import akka.actor.Actor.Receive
 import com.typesafe.scalalogging.Logger
 import dao.EventsDAO
+import dao.filters.QueryConditions
 import entities.db.{MapEvent, User, UserReport}
 import response.{CategoryResponse, EventResponse}
 import service.EventService._
@@ -42,7 +43,7 @@ class EventService {
     eventsDAO.eventsByUserId(user.id.getOrElse(0))
   }
   def getEventsAround = {
-    eventsDAO.allEvents()
+    eventsDAO.getEvents()
   }
   def getCategoryEvents(id: Int) = eventsDAO.eventsByCategoryId(id)
   def getUserEvents(id: Int) = eventsDAO.eventsByUserId(id)
@@ -53,7 +54,7 @@ class EventService {
 object EventService {
   case class AddEvent(event:MapEvent,user:User)
 
-  case class GetEvents()
+  case class GetEvents(param: Map[String,List[String]])
   case class GetUserEvents(id: Int)
   case class GetEvent(id: Int)
   case class GetEventsByDistance(distance: Double, longtitude: Double, latitude: Double)
@@ -77,7 +78,7 @@ class EventServiceActor(eventService: EventService, remingderServiceActor: Actor
           t.printStackTrace()
           sended ! EventResponse.unexpectedError.toJson.prettyPrint
       }
-    case GetEvents() =>
+    case GetEvents(param) =>
       val sended = sender()
       eventService.getEventsAround.onComplete {
         case Success(result) =>

@@ -47,7 +47,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
   }
 
 
-  override def sendGetEvents() = eventsServiceRef ? EventService.GetEvents()
+  override def sendGetEvents(param: Map[String,List[String]]) = eventsServiceRef ? EventService.GetEvents(param)
   def receive = handleMessages orElse runRoute(myRoute)
 
   //это если актору надо принять наши сообщения
@@ -105,7 +105,7 @@ trait RouteService extends HttpService {
 
   def sendAddEvent(event: MapEvent, user: User): Future[Any]
 
-  def sendGetEvents(): Future[Any]
+  def sendGetEvents(param: Map[String,List[String]]): Future[Any]
 
   def sendGetUserEvents(id: Int): Future[Any]
 
@@ -219,7 +219,7 @@ trait RouteService extends HttpService {
       }
   }
 
-  def event(user: User) = pathPrefix("event") {
+  def event(user: User, params: Map[String,List[String]]) = pathPrefix("event") {
     pathPrefix(IntNumber) {
       id =>
         path("report") {
@@ -263,7 +263,7 @@ trait RouteService extends HttpService {
     } ~
     pathEnd {
       get {
-        onComplete(sendGetEvents()) {
+        onComplete(sendGetEvents(params)) {
           logger.info(s"GET event/")
           defaultResponse
         }
@@ -325,14 +325,14 @@ trait RouteService extends HttpService {
     }
   }
   def getRoute = myRoute
-  def sessionRequiredRoutes(token: String, clientId: String) = {
+  def sessionRequiredRoutes(token: String, clientId: String, params: Map[String, List[String]]) = {
     onSuccess(sendIsAuthorized(clientId)){
       case result =>
         logger.info("Is Authorized " + result)
         JsonParser(result.asInstanceOf[String]).convertTo[AccountResponse.ResponseSuccess[User]].data match {
           case Some(u) =>
             logger.debug(s"USER: $u")
-            event(u) ~
+            event(u,params) ~
             category(u)
           case None => {
             logger.info(s"No auth for $clientId")
@@ -345,7 +345,7 @@ trait RouteService extends HttpService {
     logger.info("Auth with ClientId " + clientId + " token " + token)
     logger.info("Params " + params)
     auth(token, clientId) ~
-    sessionRequiredRoutes(token, clientId)
+    sessionRequiredRoutes(token, clientId, params)
   } ~
   complete(StatusCodes.Unauthorized, "No some headers")
 

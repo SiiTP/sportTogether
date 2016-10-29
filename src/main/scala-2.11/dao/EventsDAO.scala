@@ -1,6 +1,6 @@
 package dao
 
-import dao.filters.{QueryConditionsBuilder, EventFiltersConatiner}
+import dao.filters.{QueryConditions, EventFilters$}
 import slick.driver.MySQLDriver.api._
 import entities.db._
 import slick.jdbc.{PositionedResult, GetResult}
@@ -47,13 +47,14 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int]{
     val seq = for {
       item <- table if item.catId === id
     } yield item
+    table.join(Tables.categories).on(_.catId === _.id)
     execute(seq.result)
   }
 
   def eventsByUserId(id:Int): Future[Seq[MapEvent]] = {
     execute(table.filter(_.userId === id).result)
   }
-  def allEvents() = {
+  def getEvents() = {
     execute(table.result)
   }
   def getEventsByCategoryName(categoryName: String) = {
@@ -65,7 +66,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int]{
     val distanceQuery = new DistanceQuery(distance, longtitude, latitude)
     execute(distanceQuery.distanceQueryEventIds).flatMap[Seq[MapEvent]]((res: Vector[Int]) => execute[Seq[MapEvent]](table.filter(_.id inSet res).result))
   }
-  def test(distance:Double, longtitude: Double, latitude: Double, arr: QueryConditionsBuilder[MapEvent, MapEvents]) : Future[Seq[MapEvent]] = {
+  def test(distance:Double, longtitude: Double, latitude: Double, arr: QueryConditions[MapEvent, MapEvents]) : Future[Seq[MapEvent]] = {
     implicit val getEventResult = GetResult(EventsDAO.mapResult)
     val distanceQuery = new DistanceQuery(distance, longtitude, latitude)
     execute(distanceQuery.distanceQueryEventIds).flatMap[Seq[MapEvent]]((res: Vector[Int]) => {
@@ -76,17 +77,17 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int]{
     })
   }
 }
-object Test extends App{
-  val e = new EventsDAO()
-  val filter = new EventFiltersConatiner(Map(
-    ("events:name"->"HIMKI")))
-  val builder = filter.createQueryConditionsBuilder
-  var res = Await.result(e.test(50,37.7609,55.9168,builder),Duration.Inf)
-  var res1 = Await.result(e.getNearestEventsByDistance(50,37.7609,55.9168),Duration.Inf)
-  println(res)
-  println(res1)
-
-}
+//object Test extends App{
+//  val e = new EventsDAO()
+//  val filter = new EventFilters(Map(
+//    ("events:name"->"HIMKI")))
+//  val builder = filter.createQueryConditionsBuilder
+//  var res = Await.result(e.test(50,37.7609,55.9168,builder),Duration.Inf)
+//  var res1 = Await.result(e.getNearestEventsByDistance(50,37.7609,55.9168),Duration.Inf)
+//  println(res)
+//  println(res1)
+//
+//}
 object EventsDAO {
   def mapResult(r: PositionedResult): MapEvent = MapEvent(r.nextString, r.nextInt, r.nextDouble, r.nextDouble, r.nextTimestamp, r.nextInt, r.nextIntOption, r.nextStringOption, r.nextBoolean, r.nextIntOption, r.nextIntOption)
 }
