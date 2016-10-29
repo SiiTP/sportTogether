@@ -341,8 +341,9 @@ trait RouteService extends HttpService {
         }
     }
   }
-  val authRoutes = (headerValueByName("Token") & headerValueByName("ClientId")) { (token, clientId) =>
+  val authRoutes = (headerValueByName("Token") & headerValueByName("ClientId") & parameterMultiMap) { (token, clientId,params) =>
     logger.info("Auth with ClientId " + clientId + " token " + token)
+    logger.info("Params " + params)
     auth(token, clientId) ~
     sessionRequiredRoutes(token, clientId)
   } ~

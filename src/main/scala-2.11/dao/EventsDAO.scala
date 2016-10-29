@@ -1,10 +1,12 @@
 package dao
 
+import dao.filters.{QueryConditionsBuilder, EventFiltersConatiner}
 import slick.driver.MySQLDriver.api._
 import entities.db._
 import slick.jdbc.{PositionedResult, GetResult}
 
-import scala.concurrent.Future
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Success, Failure}
 
@@ -58,11 +60,32 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int]{
     val query = table join Tables.categories on (_.catId === _.id)
     execute(query.filter(_._2.name === categoryName).result)
   }
-  def getNearestEventsByDistance(distance:Double, longtitude: Double, latitude: Double) = {
+  def getNearestEventsByDistance(distance:Double, longtitude: Double, latitude: Double): Future[Seq[MapEvent]] = {
     implicit val getEventResult = GetResult(EventsDAO.mapResult)
     val distanceQuery = new DistanceQuery(distance, longtitude, latitude)
-    execute(distanceQuery.distanceQuery)
+    execute(distanceQuery.distanceQueryEventIds).flatMap[Seq[MapEvent]]((res: Vector[Int]) => execute[Seq[MapEvent]](table.filter(_.id inSet res).result))
   }
+  def test(distance:Double, longtitude: Double, latitude: Double, arr: QueryConditionsBuilder[MapEvent, MapEvents]) : Future[Seq[MapEvent]] = {
+    implicit val getEventResult = GetResult(EventsDAO.mapResult)
+    val distanceQuery = new DistanceQuery(distance, longtitude, latitude)
+    execute(distanceQuery.distanceQueryEventIds).flatMap[Seq[MapEvent]]((res: Vector[Int]) => {
+      val q = table.filter(_.id inSet res)
+      val newQuery = arr.buildQueryWithConditions(q).result
+      println(newQuery.statements)
+      execute[Seq[MapEvent]](newQuery)
+    })
+  }
+}
+object Test extends App{
+  val e = new EventsDAO()
+  val filter = new EventFiltersConatiner(Map(
+    ("events:name"->"HIMKI")))
+  val builder = filter.createQueryConditionsBuilder
+  var res = Await.result(e.test(50,37.7609,55.9168,builder),Duration.Inf)
+  var res1 = Await.result(e.getNearestEventsByDistance(50,37.7609,55.9168),Duration.Inf)
+  println(res)
+  println(res1)
+
 }
 object EventsDAO {
   def mapResult(r: PositionedResult): MapEvent = MapEvent(r.nextString, r.nextInt, r.nextDouble, r.nextDouble, r.nextTimestamp, r.nextInt, r.nextIntOption, r.nextStringOption, r.nextBoolean, r.nextIntOption, r.nextIntOption)
@@ -77,6 +100,11 @@ class DistanceQuery(val distance: Double, val longtitude: Double, val latitude: 
   def distanceQuery ={
     implicit val getEventResult = GetResult[MapEvent](EventsDAO.mapResult)
     sql"""SELECT *,   1.609344 * 3956 * 2 * ASIN(SQRT( POWER(SIN((${latitude} - abs(events.latitude)) * pi()/180 / 2),2) + COS(${latitude} * pi()/180 ) * COS(abs (events.latitude) *  pi()/180) * POWER(SIN((${longtitude} - events.longtitude) *  pi()/180 / 2), 2) ))   as distance FROM events where latitude between ${latitudeBetweenTuple._1} and ${latitudeBetweenTuple._2} and longtitude between ${longtitudeBetweenTuple._1} and ${longtitudeBetweenTuple._2} having distance < ${distance} order by distance;""".as[MapEvent]
+  }
+
+  def distanceQueryEventIds ={
+    implicit val getEventResult = GetResult[MapEvent](EventsDAO.mapResult)
+    sql"""SELECT id,   1.609344 * 3956 * 2 * ASIN(SQRT( POWER(SIN((${latitude} - abs(events.latitude)) * pi()/180 / 2),2) + COS(${latitude} * pi()/180 ) * COS(abs (events.latitude) *  pi()/180) * POWER(SIN((${longtitude} - events.longtitude) *  pi()/180 / 2), 2) ))   as distance FROM events where latitude between ${latitudeBetweenTuple._1} and ${latitudeBetweenTuple._2} and longtitude between ${longtitudeBetweenTuple._1} and ${longtitudeBetweenTuple._2} having distance < ${distance} order by distance;""".as[Int]
   }
 }
 object DistanceQuery{

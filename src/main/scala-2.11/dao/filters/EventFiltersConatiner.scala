@@ -2,70 +2,101 @@ package dao.filters
 
 import entities.db._
 import slick.driver.MySQLDriver.api._
+
+import scala.collection.mutable.ArrayBuffer
+
 /**
   * Created by ivan on 25.10.16.
   */
-abstract class Test[E, T <: Table[E]](_paramMap: Map[String,String], table: TableQuery[T]) {
-  def createQuery :Query[T,T#TableElementType, scala.Seq] = {
-    var query: Query[T, T#TableElementType, scala.Seq] = table
-    _paramMap.foreach((a:(String,String)) => {
+abstract class ParametersFiltration[E, T <: Table[E]](_paramMap: Map[String,List[String]], table: TableQuery[T]) {
+
+  private def createConditions : ArrayBuffer[(T) => Rep[Boolean]]= {
+    val where = new ArrayBuffer[(T) => Rep[Boolean]]()
+    _paramMap.foreach((a:(String,List[String])) => {
       getFilter(a._1) match {
         case Some(f) =>
-          query = query.filter(f(a._2))
+          where += f(a._2)
       }
     })
-    println(query.result.statements)
-    query
+    where
   }
-  def getFilter(name: String): Option[(String) => T => Rep[Boolean]]
+  def createQueryConditionsBuilder = new QueryConditionsBuilder[E,T](createConditions)
+  protected def getFilter(name: String): Option[(List[String]) => T => Rep[Boolean]]
 }
-class EventFiltersConatiner(_paramMap: Map[String,String]) extends Test[MapEvent, MapEvents](_paramMap,EventFiltersConatiner.table){
+class QueryConditionsBuilder[E,T <: Table[E]](_arr: ArrayBuffer[(T) => Rep[Boolean]]) {
+  def buildQueryWithConditions(q: Query[T,T#TableElementType,Seq]) = {
+    var result = q
+    _arr.foreach(cond => {
+      result = result.filter[Rep[Boolean]](cond)
+    })
+    result
+  }
+}
+class EventFiltersConatiner(_paramMap: Map[String,List[String]]) extends ParametersFiltration[MapEvent, MapEvents](_paramMap,EventFiltersConatiner.table){
 
   def getFilter(name: String) = EventFiltersConatiner.filters.get(name)
 
 }
-class CategoryFiltersContainer(_paramMap: Map[String,String]) extends Test[MapCategory, MapCategories](_paramMap,CategoryFiltersContainer.table){
 
-  def getFilter(name: String) = CategoryFiltersContainer.filters.get(name)
-
-}
 object EventFiltersConatiner {
   private val table = Tables.events
   private val filters = scala.collection.immutable.Map(
-    ("name", (name: String) => (f:MapEvents) => f.name === name),
-    ("report", (name: String) => {
-      val rep = Integer.parseInt(name)
-      (f:MapEvents) => f.report === rep
-    }),
-    ("ge:report", (name: String) => {
-      val rep = Integer.parseInt(name)
-      (f:MapEvents) => f.report >= rep
-    })
+    ("events:name", (values: List[String]) => {
+      if (values.size == 1)
+        (f:MapEvents) => f.name === values.head
+      else
+        (f:MapEvents) => f.name inSet  values
 
+    }),
+    ("events:report", (values: List[String]) => {
+      if (values.size == 1)
+        (f:MapEvents) => f.report === values.head.toInt
+      else
+        (f:MapEvents) => f.report inSet  values.map(_.toInt)
+    }),
+    ("events:ge:report", (values: List[String]) => {
+        val rep = values.head.toInt
+        (f:MapEvents) => f.report >= rep
+    })
   )
 }
+//class CategoryFiltersContainer(_paramMap: Map[String,String]) extends ParametersFiltration[MapCategory, MapCategories](_paramMap,CategoryFiltersContainer.table){
+//
+//  def getFilter(name: String) = CategoryFiltersContainer.filters.get(name)
+//
+//}
+
 object CategoryFiltersContainer {
   private val table = Tables.categories
   private val filters = scala.collection.immutable.Map(
-    ("name", (name: String) => (f:MapCategories) => f.name === name),
-    ("contains:name", (name: String) => {
+    ("category:name", (name: String) => (f:MapCategories) => f.name === name),
+    ("category:contains:name", (name: String) => {
       (f:MapCategories) => f.name like name
     })
   )
 }
 object f extends App {
   val e = new EventFiltersConatiner(Map(
-    ("name"->"vasya"),
-    ("report"->"25"),
-    ("ge:report"->"25")
+    ("events:name"->"vasya"),
+    ("events:report"->"25"),
+    ("events:ge:report"->"25")
   ))
-  val query = e.createQuery
-  val ee = new CategoryFiltersContainer(Map(
-    ("name"->"vasya"),
-    ("contains:name"->"25")
-  ))
+  var tt = Tables.events.filter(_.id > 0)
+  val builder = e.createQueryConditionsBuilder
+  tt = builder.buildQueryWithConditions(tt)
+  println(tt.result.statements)
+  println("__________________")
+//  var res = Tables.events.to[scala.Seq]
+//
+//  val j = res.join(Tables.categories).on(_.catId === _.id)
+//  println(j.result.statements)
+//  val ee = new CategoryFiltersContainer(Map(
+//    ("category:name"->"vasya"),
+//    ("category:contains:name"->"25")
+//  ))
+//  val jj = Tables.events.join(Tables.categories).on(_.catId === _.id)
+//  println(jj.result.statements)
 //  var res = (Tables.events ++ query).join(Tables.categories).on(_.catId == _.name)
-  var res = Tables.events.
-  println(res.result.statements)
-  ee.createQuery
+
+//  ee.createQuery
 }
