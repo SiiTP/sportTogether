@@ -8,7 +8,7 @@ import service.RouteServiceActor._
 import akka.util.Timeout
 import entities.db.{EntitiesJsonProtocol, MapCategory, MapEvent, User}
 import entities.db.EntitiesJsonProtocol._
-import response.{AccountResponse, EventResponse}
+import response.{AccountResponse, CategoryResponse, EventResponse, MyResponse}
 import service.AccountService.AccountHello
 import service.RouteServiceActor.{IsAuthorized, RouteHello}
 import spray.routing._
@@ -181,7 +181,7 @@ trait RouteService extends HttpService {
   }
 
   def category(user: User) = pathPrefix("category") {
-    parameter("subname".as[String]) { subname =>
+    (pathEnd & parameter("subname".as[String])) { subname =>
       onComplete(sendGetCategoriesByPartOfName(subname)) { tryAny =>
         defaultResponse(tryAny, s"GET /category?subname=" + subname)
       }
@@ -227,8 +227,8 @@ trait RouteService extends HttpService {
                   defaultResponse(tryAny, s"POST category/ data:$category")
                 }
             }
-          }  ~ complete("no required parameters")
-      }
+          } ~ complete(CategoryResponse.unexpectedPath.toJson.prettyPrint)
+      } ~ complete(CategoryResponse.unexpectedPath.toJson.prettyPrint)
   }
 
   def event(user: User, params: Map[String,List[String]]) = pathPrefix("event") {
@@ -280,17 +280,15 @@ trait RouteService extends HttpService {
     } ~
     pathEnd {
       get {
-        onComplete(sendGetEvents(params)) {
-          logger.info(s"GET event/")
-          defaultResponse
+        onComplete(sendGetEvents(params)) { tryAny =>
+          defaultResponse(tryAny, s"GET event/")
         }
       } ~
         post {
           entity(as[MapEvent]) { event =>
 
-            onComplete(sendAddEvent(event, user)) {
-              logger.info(s"POST event/ data:$event")
-              defaultResponse
+            onComplete(sendAddEvent(event, user)) { tryAny =>
+              defaultResponse(tryAny, s"POST event/ data:$event")
             }
           } ~ complete(EventResponse.noSomeParameters.toJson.prettyPrint)
         }
@@ -316,7 +314,7 @@ trait RouteService extends HttpService {
               }
           }
       }
-    }
+    } ~ complete(EventResponse.unexpectedPath.toJson.prettyPrint)
   }
 
   def testMessageSend(token: String): Future[Any]

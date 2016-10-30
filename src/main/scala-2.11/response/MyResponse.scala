@@ -12,6 +12,7 @@ object MyResponse {
   val CODE_SUCCESS = 0
   val CODE_NOT_SUCCESS = 1
   val CODE_UNEXPECTED = 2
+  val CODE_UNEXPECTED_PATH = 3
 }
 
 trait MyResponse extends DefaultJsonProtocol {
@@ -25,6 +26,7 @@ trait MyResponse extends DefaultJsonProtocol {
   def responseError(code: Int, message: String) = ResponseError(code, message)
   def responseNotSuccess() = responseError(MyResponse.CODE_NOT_SUCCESS, "Not success")
   def unexpectedError = responseError(MyResponse.CODE_UNEXPECTED, "something went wrong")
+  def unexpectedPath = responseError(MyResponse.CODE_UNEXPECTED_PATH, "not right url or parameters")
   def isError(data: Any) = {
     data.isInstanceOf[ResponseError]
   }
