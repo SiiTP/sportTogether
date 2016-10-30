@@ -8,7 +8,7 @@ import service.RouteServiceActor._
 import akka.util.Timeout
 import entities.db.{EntitiesJsonProtocol, MapCategory, MapEvent, User}
 import entities.db.EntitiesJsonProtocol._
-import response.{AccountResponse, EventResponse}
+import response.{AccountResponse, CategoryResponse, EventResponse, MyResponse}
 import service.AccountService.AccountHello
 import service.RouteServiceActor.{IsAuthorized, RouteHello}
 import spray.routing._
@@ -69,6 +69,8 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
   override def sendGetCategory(id: Int): Future[Any] = _categoryService ? CategoryService.GetCategory(id)
 
   override def sendGetCategories(): Future[Any] = _categoryService ? CategoryService.GetCategories()
+  override def sendGetCategoriesByPartOfName(subname: String): Future[Any] = _categoryService ? CategoryService.GetCategoriesByPartOfName(subname)
+
 
   override def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double, param: Map[String,List[String]]): Future[Any] = _eventService ? EventService.GetEventsByDistance(distance, longtitude, latitude, new EventFilters(param))
 
@@ -127,6 +129,7 @@ trait RouteService extends HttpService {
   def sendGetEventsByCategoryName(name: String): Future[Any]
 
   def sendGetCategories(): Future[Any]
+  def sendGetCategoriesByPartOfName(subname: String): Future[Any]
 
   def sendGetCategory(id: Int): Future[Any]
 
@@ -178,6 +181,11 @@ trait RouteService extends HttpService {
   }
 
   def category(user: User) = pathPrefix("category") {
+    (pathEnd & parameter("subname".as[String])) { subname =>
+      onComplete(sendGetCategoriesByPartOfName(subname)) { tryAny =>
+        defaultResponse(tryAny, s"GET /category?subname=" + subname)
+      }
+    } ~
     pathPrefix(IntNumber) {
       id => {
           pathEnd {
@@ -200,13 +208,12 @@ trait RouteService extends HttpService {
             entity(as[MapCategory]) {
               category =>
 
-                onComplete(sendCreateCategory(category.name)) {
-                  logger.info(s"POST category/ data:$category")
-                  defaultResponse
+                onComplete(sendCreateCategory(category.name)) { tryAny =>
+                  defaultResponse(tryAny, s"POST category/ data:$category")
                 }
             }
-          }  ~ complete("no required parameters")
-      }
+          } ~ complete(CategoryResponse.unexpectedPath.toJson.prettyPrint)
+      } ~ complete(CategoryResponse.unexpectedPath.toJson.prettyPrint)
   }
 
   def event(user: User, params: Map[String,List[String]]) = pathPrefix("event") {
@@ -258,17 +265,15 @@ trait RouteService extends HttpService {
     } ~
     pathEnd {
       get {
-        onComplete(sendGetEvents(params)) {
-          logger.info(s"GET event/")
-          defaultResponse
+        onComplete(sendGetEvents(params)) { tryAny =>
+          defaultResponse(tryAny, s"GET event/")
         }
       } ~
         post {
           entity(as[MapEvent]) { event =>
 
-            onComplete(sendAddEvent(event, user)) {
-              logger.info(s"POST event/ data:$event")
-              defaultResponse
+            onComplete(sendAddEvent(event, user)) { tryAny =>
+              defaultResponse(tryAny, s"POST event/ data:$event")
             }
           } ~ complete(EventResponse.noSomeParameters.toJson.prettyPrint)
         }
@@ -294,7 +299,7 @@ trait RouteService extends HttpService {
               }
           }
       }
-    }
+    } ~ complete(EventResponse.unexpectedPath.toJson.prettyPrint)
   }
 
   def testMessageSend(token: String): Future[Any]
