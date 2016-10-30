@@ -3,6 +3,7 @@ package service
 import akka.actor._
 import akka.pattern.AskableActorRef
 import com.typesafe.scalalogging.Logger
+import dao.filters.EventFilters
 import service.RouteServiceActor._
 import akka.util.Timeout
 import entities.db.{EntitiesJsonProtocol, MapCategory, MapEvent, User}
@@ -47,7 +48,10 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
   }
 
 
-  override def sendGetEvents(param: Map[String,List[String]]) = eventsServiceRef ? EventService.GetEvents(param)
+  override def sendGetEvents(param: Map[String,List[String]]) = {
+
+    eventsServiceRef ? EventService.GetEvents(new EventFilters(param))
+  }
   def receive = handleMessages orElse runRoute(myRoute)
 
   //это если актору надо принять наши сообщения

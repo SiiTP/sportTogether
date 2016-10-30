@@ -4,7 +4,7 @@ import akka.actor.{ActorRef, Actor}
 import akka.actor.Actor.Receive
 import com.typesafe.scalalogging.Logger
 import dao.EventsDAO
-import dao.filters.QueryConditions
+import dao.filters.{EventFilters, ParametersFiltration}
 import entities.db.{MapEvent, User, UserReport}
 import response.{CategoryResponse, EventResponse}
 import service.EventService._
@@ -42,8 +42,8 @@ class EventService {
   def getUserEvents(user: User) = {
     eventsDAO.eventsByUserId(user.id.getOrElse(0))
   }
-  def getEventsAround = {
-    eventsDAO.getEvents()
+  def getEventsAround(filters: EventFilters) = {
+    eventsDAO.getEvents(filters)
   }
   def getCategoryEvents(id: Int) = eventsDAO.eventsByCategoryId(id)
   def getUserEvents(id: Int) = eventsDAO.eventsByUserId(id)
@@ -54,7 +54,7 @@ class EventService {
 object EventService {
   case class AddEvent(event:MapEvent,user:User)
 
-  case class GetEvents(param: Map[String,List[String]])
+  case class GetEvents(filters: EventFilters)
   case class GetUserEvents(id: Int)
   case class GetEvent(id: Int)
   case class GetEventsByDistance(distance: Double, longtitude: Double, latitude: Double)
@@ -78,9 +78,9 @@ class EventServiceActor(eventService: EventService, remingderServiceActor: Actor
           t.printStackTrace()
           sended ! EventResponse.unexpectedError.toJson.prettyPrint
       }
-    case GetEvents(param) =>
+    case GetEvents(filters) =>
       val sended = sender()
-      eventService.getEventsAround.onComplete {
+      eventService.getEventsAround(filters).onComplete {
         case Success(result) =>
           logger.info(s"success when get events : " + result)
           sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint

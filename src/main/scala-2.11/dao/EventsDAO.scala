@@ -1,6 +1,7 @@
 package dao
 
-import dao.filters.{QueryConditions, EventFilters$}
+
+import dao.filters.EventFilters
 import slick.driver.MySQLDriver.api._
 import entities.db._
 import slick.jdbc.{PositionedResult, GetResult}
@@ -54,8 +55,10 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int]{
   def eventsByUserId(id:Int): Future[Seq[MapEvent]] = {
     execute(table.filter(_.userId === id).result)
   }
-  def getEvents() = {
-    execute(table.result)
+  def getEvents(filters: EventFilters) = {
+    val query = table
+    val newQuery = filters.createQueryWithFilter(query).result
+    execute(newQuery)
   }
   def getEventsByCategoryName(categoryName: String) = {
     val query = table join Tables.categories on (_.catId === _.id)
@@ -66,16 +69,16 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int]{
     val distanceQuery = new DistanceQuery(distance, longtitude, latitude)
     execute(distanceQuery.distanceQueryEventIds).flatMap[Seq[MapEvent]]((res: Vector[Int]) => execute[Seq[MapEvent]](table.filter(_.id inSet res).result))
   }
-  def test(distance:Double, longtitude: Double, latitude: Double, arr: QueryConditions[MapEvent, MapEvents]) : Future[Seq[MapEvent]] = {
-    implicit val getEventResult = GetResult(EventsDAO.mapResult)
-    val distanceQuery = new DistanceQuery(distance, longtitude, latitude)
-    execute(distanceQuery.distanceQueryEventIds).flatMap[Seq[MapEvent]]((res: Vector[Int]) => {
-      val q = table.filter(_.id inSet res)
-      val newQuery = arr.buildQueryWithConditions(q).result
-      println(newQuery.statements)
-      execute[Seq[MapEvent]](newQuery)
-    })
-  }
+//  def test(distance:Double, longtitude: Double, latitude: Double, arr: QueryConditions[MapEvent, MapEvents]) : Future[Seq[MapEvent]] = {
+//    implicit val getEventResult = GetResult(EventsDAO.mapResult)
+//    val distanceQuery = new DistanceQuery(distance, longtitude, latitude)
+//    execute(distanceQuery.distanceQueryEventIds).flatMap[Seq[MapEvent]]((res: Vector[Int]) => {
+//      val q = table.filter(_.id inSet res)
+//      val newQuery = arr.buildQueryWithConditions(q).result
+//      println(newQuery.statements)
+//      execute[Seq[MapEvent]](newQuery)
+//    })
+//  }
 }
 //object Test extends App{
 //  val e = new EventsDAO()
