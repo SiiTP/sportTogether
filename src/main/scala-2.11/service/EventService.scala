@@ -45,7 +45,6 @@ class EventService {
   def getEventsAround(filters: EventFilters) = {
     eventsDAO.getEvents(filters)
   }
-  def getCategoryEvents(id: Int) = eventsDAO.eventsByCategoryId(id)
   def getUserEvents(id: Int) = eventsDAO.eventsByUserId(id)
   def getEvent(id: Int) = eventsDAO.get(id)
   def getEventsInDistance(distance: Double, lon: Double, lat: Double, filters: EventFilters) = eventsDAO.getNearestEventsByDistance(distance,lon,lat, filters)
@@ -119,13 +118,6 @@ class EventServiceActor(eventService: EventService, remingderServiceActor: Actor
       eventService.reportEvent(id, user).onComplete {
         case Success(result) => sended ! EventResponse.responseSuccess(Some(UserReport(user.id.get,id))).toJson.prettyPrint
         case Failure(t) => sended ! EventResponse.alreadyReport.toJson.prettyPrint
-      }
-    case GetEventsByCategoryId(id) =>
-      val sended = sender()
-      eventService.getCategoryEvents(id).onComplete {
-        case Success(result) =>
-          sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
-        case Failure(t) => sended ! CategoryResponse.notFoundError.toJson.prettyPrint
       }
   }
 }

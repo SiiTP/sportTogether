@@ -180,13 +180,6 @@ trait RouteService extends HttpService {
   def category(user: User) = pathPrefix("category") {
     pathPrefix(IntNumber) {
       id => {
-        path("event") {
-          get {
-            onComplete(sendGetEventsByCategoryId(id)) { tryAny =>
-              defaultResponse(tryAny, s"GET category/$id/event")
-            }
-          }
-        } ~
           pathEnd {
             get {
               onComplete(sendGetCategory(id)) { tryAny =>
@@ -196,14 +189,6 @@ trait RouteService extends HttpService {
           }
       }
     } ~
-      pathPrefix(Segment) {
-        segment =>
-          get {
-            onComplete(sendGetEventsByCategoryName(segment)) { tryAny =>
-              defaultResponse(tryAny, s"GET category/$segment")
-            }
-          }
-      } ~
       pathEnd {
         get {
 

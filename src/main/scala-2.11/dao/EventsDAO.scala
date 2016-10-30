@@ -48,14 +48,6 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
     })
   }
 
-  def eventsByCategoryId(id: Int): Future[Seq[MapEvent]] = {
-    val seq = for {
-      item <- table if item.catId === id
-    } yield item
-    table.join(Tables.categories).on(_.catId === _.id)
-    execute(seq.result)
-  }
-
   def eventsByUserId(id: Int): Future[Seq[MapEvent]] = {
     execute(table.filter(_.userId === id).result)
   }
@@ -108,10 +100,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
     count
   }
 
-  def getEventsByCategoryName(categoryName: String) = {
-    val query = table join Tables.categories on (_.catId === _.id)
-    execute(query.filter(_._2.name === categoryName).result)
-  }
+
 
   def getNearestEventsByDistance(distance: Double, longtitude: Double, latitude: Double, filters: EventFilters): Future[Seq[MapEvent]] = {
     implicit val getEventResult = GetResult(EventsDAO.mapResult)
@@ -132,10 +121,6 @@ class DistanceQuery(val distance: Double, val longtitude: Double, val latitude: 
   private def latitudeBetweenTuple = (latitude - latitudeDelta, latitude + latitudeDelta)
   private def latitudeDelta = distance/DistanceQuery.LATITUDE_IN_KM
 
-  def distanceQuery ={
-    implicit val getEventResult = GetResult[MapEvent](EventsDAO.mapResult)
-    sql"""SELECT *,   1.609344 * 3956 * 2 * ASIN(SQRT( POWER(SIN((${latitude} - abs(events.latitude)) * pi()/180 / 2),2) + COS(${latitude} * pi()/180 ) * COS(abs (events.latitude) *  pi()/180) * POWER(SIN((${longtitude} - events.longtitude) *  pi()/180 / 2), 2) ))   as distance FROM events where latitude between ${latitudeBetweenTuple._1} and ${latitudeBetweenTuple._2} and longtitude between ${longtitudeBetweenTuple._1} and ${longtitudeBetweenTuple._2} having distance < ${distance} order by distance;""".as[MapEvent]
-  }
 
   def distanceQueryEventIds ={
     implicit val getEventResult = GetResult[MapEvent](EventsDAO.mapResult)
