@@ -48,7 +48,7 @@ class EventService {
   def getCategoryEvents(id: Int) = eventsDAO.eventsByCategoryId(id)
   def getUserEvents(id: Int) = eventsDAO.eventsByUserId(id)
   def getEvent(id: Int) = eventsDAO.get(id)
-  def getEventsInDistance(distance: Double, lon: Double, lat: Double) = eventsDAO.getNearestEventsByDistance(distance,lon,lat)
+  def getEventsInDistance(distance: Double, lon: Double, lat: Double, filters: EventFilters) = eventsDAO.getNearestEventsByDistance(distance,lon,lat, filters)
 }
 
 object EventService {
@@ -57,7 +57,7 @@ object EventService {
   case class GetEvents(filters: EventFilters)
   case class GetUserEvents(id: Int)
   case class GetEvent(id: Int)
-  case class GetEventsByDistance(distance: Double, longtitude: Double, latitude: Double)
+  case class GetEventsByDistance(distance: Double, longtitude: Double, latitude: Double, filters: EventFilters)
 
   case class UpdateEvent(event: MapEvent, user: User)
   case class ReportEvent(id: Int, user: User)
@@ -99,9 +99,9 @@ class EventServiceActor(eventService: EventService, remingderServiceActor: Actor
         case Success(event) => sended ! EventResponse.responseSuccess(Some(event)).toJson.prettyPrint
         case Failure(t) => sended ! EventResponse.notFoundError.toJson.prettyPrint
       }
-    case GetEventsByDistance(distance, longtitude, latitude) =>
+    case GetEventsByDistance(distance, longtitude, latitude, filters) =>
       val sended = sender()
-      eventService.getEventsInDistance(distance, longtitude, latitude).onComplete {
+      eventService.getEventsInDistance(distance, longtitude, latitude, filters).onComplete {
         case Success(events) => sended ! EventResponse.responseSuccess(Some(events)).toJson.prettyPrint
         case Failure(t) => sended ! EventResponse.unexpectedError.toJson.prettyPrint
       }

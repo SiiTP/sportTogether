@@ -1,5 +1,6 @@
 package dao.filters
 
+import java.lang.reflect.Method
 import java.sql.{Date, Timestamp}
 
 import entities.db._
@@ -24,8 +25,7 @@ abstract class ParametersFiltration[E, T <: Table[E]](_paramMap: Map[String,List
 
   def createQueryWithFilter(q: Query[T,E,Seq]): Query[T,E,Seq] = {
     parseParameters()
-    var resultQuery = createJoinTableConditions(q)
-    resultQuery = createTableConditions(resultQuery)
+    val resultQuery = buildQuerySortConditions(createTableConditions(createJoinTableConditions(q)))
     resultQuery
   }
   private def createJoinTableConditions(q: Query[T,E,Seq]) = {
@@ -56,49 +56,36 @@ abstract class ParametersFiltration[E, T <: Table[E]](_paramMap: Map[String,List
     })
   }
 
-  def getTableSortField(t: T, fieldName: String) = {
+  def getTableSortField(t: T, fieldName: String): Option[Method] = {
     try {
-    t.getClass.getMethod(fieldName).invoke(t)
+      return Some(t.getClass.getMethod(fieldName))
     } catch {
       case e: NoSuchMethodException =>
         println(e.getMessage)
     }
+    None
   }
 
-  def buildQuerySortConditions(q: Query[T,E,Seq],
-                                    sortParams: Seq[String]): Query[T,E,Seq] = {
+  protected def buildQuerySortConditions(q: Query[T,E,Seq]): Query[T,E,Seq] = {
     var result = q
-    sortParams.foreach((item: String) => {
+    sortList.foreach((item: String) => {
       var isDesc = false
       var fieldName = item
       if (item.contains("Desc")) {
         isDesc = true
         fieldName = item.substring(0,item.indexOf("Desc"))
       }
-
-      val field = getTableSortField(getTable.baseTableRow, fieldName)
-
-      result = result.sortBy((row: T) => {//долбанный slick
-        val field = getTableSortField(row, fieldName)
-        field match {
-          case result: Rep[Number] if isDesc =>
-            field.asInstanceOf[Rep[Int]].desc
-          case result: Rep[Number] =>
-            field.asInstanceOf[Rep[Int]].asc
-          case result: Rep[Date] if isDesc =>
-            field.asInstanceOf[Rep[Date]].desc
-          case result: Rep[Date] =>
-            field.asInstanceOf[Rep[Date]].asc
-          case result: Rep[String] if isDesc =>
-            field.asInstanceOf[Rep[String]].desc
-          case result: Rep[String] =>
-            field.asInstanceOf[Rep[String]].asc
-          case _ =>
-            field.asInstanceOf[Rep[String]].desc
-        }
-
-      })
-
+      //супер костыль
+      getTableSortField(getTable.baseTableRow, fieldName) match {
+        case Some(field) =>
+          result = result.sortBy((f:T) => {
+            if(isDesc)
+              field.invoke(f).asInstanceOf[Rep[String]].desc
+            else
+              field.invoke(f).asInstanceOf[Rep[String]].asc
+          })
+        case None =>
+      }
     })
     result
   }
@@ -198,6 +185,13 @@ object EventFilters {
         (f:MapEvents) => f.name inSet  values
 
     }),
+    ("catId", (values: List[String]) => {
+      if (values.size == 1)
+        (f:MapEvents) => f.catId === values.head.toInt
+      else
+        (f:MapEvents) => f.catId inSet  values.map(_.toInt)
+
+    }),
     ("report", (values: List[String]) => {
       if (values.size == 1)
         (f:MapEvents) => f.report === values.head.toInt
@@ -239,35 +233,3 @@ object EventFilters {
 //    })
 //  )
 //}
-
-object f extends App {
-
-  val ss = new EventFilters(Map(
-      "events:name" -> List("vasya"),
-      "events:report" -> List("25"),
-      "events:category:name" -> List("25"),
-      "events:sort" -> List("name","date"),
-      "qwqfqw:sort:name" -> List("25")
-    ))
-  val q = Tables.events
-  println(q.baseTableRow.create_*.map(_.name))
-//  val fs = (ff:MapEvents) => {
-//    ff.name.asc
-//  }
-//  val n = q.sortBy(fs)
-//  val n = ss.buildQuerySortConditions(q,List("nameDesc","date","dratuti"))
-//  println(n.result.statements)
-//  val query = Tables.events
-//  val res = ss.createQueryWithFilter(query)
-//  println(res.sortBy(f).result.statements)
-//  val f = new MapEvent("DAS",1,2,2,new Timestamp(421),1)
-//  f.getClass.getMethods.foreach(println)
-// println("_____________")
-//  val m = f.getClass.getMethod("date")
-//  println(m.getReturnType)
-//  val rr = m.invoke(f)
-//  println(rr)
-//  println(m)
-
-
-}

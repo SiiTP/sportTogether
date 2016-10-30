@@ -70,7 +70,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
 
   override def sendGetCategories(): Future[Any] = _categoryService ? CategoryService.GetCategories()
 
-  override def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double): Future[Any] = _eventService ? EventService.GetEventsByDistance(distance, longtitude, latitude)
+  override def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double, param: Map[String,List[String]]): Future[Any] = _eventService ? EventService.GetEventsByDistance(distance, longtitude, latitude, new EventFilters(param))
 
   override def sendUpdateEvents(event: MapEvent, user: User) = _eventService ? EventService.UpdateEvent(event, user)
 
@@ -115,7 +115,7 @@ trait RouteService extends HttpService {
 
   def sendGetEventsByCategoryId(id: Int): Future[Any]
 
-  def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double): Future[Any]
+  def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double, param: Map[String,List[String]]): Future[Any]
 
   def sendGetEvent(id: Int): Future[Any]
 
@@ -296,7 +296,7 @@ trait RouteService extends HttpService {
           parameter("latitude".as[Double], "longtitude".as[Double]) {
             (latitude, longtitude) =>
               get {
-                onComplete(sendGetEventsDistance(distance, latitude, longtitude)) {
+                onComplete(sendGetEventsDistance(distance, latitude, longtitude, params)) {
                   logger.info(s"GET event/distance/$distance Latittude $latitude and $longtitude")
                   defaultResponse
                 }

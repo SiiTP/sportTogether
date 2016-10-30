@@ -64,10 +64,13 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int]{
     val query = table join Tables.categories on (_.catId === _.id)
     execute(query.filter(_._2.name === categoryName).result)
   }
-  def getNearestEventsByDistance(distance:Double, longtitude: Double, latitude: Double): Future[Seq[MapEvent]] = {
+  def getNearestEventsByDistance(distance:Double, longtitude: Double, latitude: Double, filters: EventFilters): Future[Seq[MapEvent]] = {
     implicit val getEventResult = GetResult(EventsDAO.mapResult)
     val distanceQuery = new DistanceQuery(distance, longtitude, latitude)
-    execute(distanceQuery.distanceQueryEventIds).flatMap[Seq[MapEvent]]((res: Vector[Int]) => execute[Seq[MapEvent]](table.filter(_.id inSet res).result))
+    execute(distanceQuery.distanceQueryEventIds).flatMap[Seq[MapEvent]]((res: Vector[Int]) => {
+      val query = table.filter(_.id inSet res)
+      execute[Seq[MapEvent]](filters.createQueryWithFilter(query).result)
+    })
   }
 //  def test(distance:Double, longtitude: Double, latitude: Double, arr: QueryConditions[MapEvent, MapEvents]) : Future[Seq[MapEvent]] = {
 //    implicit val getEventResult = GetResult(EventsDAO.mapResult)
