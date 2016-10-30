@@ -77,7 +77,11 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
   override def sendReportEvent(id: Int, user: User) = _eventService ? EventService.ReportEvent(id, user)
   override def sendGetEventsByCategoryId(id: Int) = _eventService ? EventService.GetEventsByCategoryId(id)
   override def sendGetEventsByCategoryName(name: String) = _categoryService ? CategoryService.GetEventsByCategoryName(name)
+
+
   override def sendUserJoinEvent(user: User, eventId: Int, token: String): Future[Any] = _joinEventService ? JoinEventService.AddUserToEvent(eventId, user, token)
+  override def sendGetJoinedEvents(user: User) = _joinEventService ? JoinEventService.GetEventsOfUser(user)
+
 
   override def testMessageSend(token: String): Future[Any] = _fcmService ? FcmService.SendMessage(Array(token),JsObject("hello" -> JsString("world"), "id" -> JsNumber(5), "bools" -> JsBoolean(true)))
 
@@ -112,6 +116,7 @@ trait RouteService extends HttpService {
   def sendGetEvents(param: Map[String,List[String]]): Future[Any]
 
   def sendGetUserEvents(id: Int): Future[Any]
+  def sendGetJoinedEvents(user: User): Future[Any]
 
   def sendGetEventsByCategoryId(id: Int): Future[Any]
 
@@ -177,17 +182,15 @@ trait RouteService extends HttpService {
       id => {
         path("event") {
           get {
-            onComplete(sendGetEventsByCategoryId(id)) {
-              logger.info(s"GET category/$id/event")
-              defaultResponse
+            onComplete(sendGetEventsByCategoryId(id)) { tryAny =>
+              defaultResponse(tryAny, s"GET category/$id/event")
             }
           }
         } ~
           pathEnd {
             get {
-              onComplete(sendGetCategory(id)) {
-                logger.info(s"GET category/$id")
-                defaultResponse
+              onComplete(sendGetCategory(id)) { tryAny =>
+                defaultResponse(tryAny, s"GET category/$id")
               }
             }
           }
@@ -196,18 +199,16 @@ trait RouteService extends HttpService {
       pathPrefix(Segment) {
         segment =>
           get {
-            onComplete(sendGetEventsByCategoryName(segment)) {
-              logger.info(s"GET category/$segment")
-              defaultResponse
+            onComplete(sendGetEventsByCategoryName(segment)) { tryAny =>
+              defaultResponse(tryAny, s"GET category/$segment")
             }
           }
       } ~
       pathEnd {
         get {
 
-          onComplete(sendGetCategories()) {
-            logger.info(s"GET category/")
-            defaultResponse
+          onComplete(sendGetCategories()) { tryAny =>
+            defaultResponse(tryAny, s"GET category/")
           }
         } ~
           post {
@@ -264,6 +265,11 @@ trait RouteService extends HttpService {
             }
           }
         }
+    } ~
+      (path("joined") & get) {
+      onComplete(sendGetJoinedEvents(user)) { (tryAny: Try[Any]) =>
+        defaultResponse(tryAny, "/event/joined with user : " + user)
+      }
     } ~
     pathEnd {
       get {

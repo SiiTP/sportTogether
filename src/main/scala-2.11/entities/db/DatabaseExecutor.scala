@@ -20,7 +20,6 @@ class DatabaseHelper private(){
     val properties = new Properties()
 //    properties.load(new FileReader(configPath))
     properties.load(stream)
-    println(properties)
     properties.getProperty("db") match {
       case "create" => recreate()
       case _ => None
@@ -46,11 +45,11 @@ class DatabaseHelper private(){
   }
   def clearTables = Await.result(db.run(
     DBIO.seq(
-      users      . delete,
+      eventUsers . delete,
+      userReports. delete,
       events     . delete,
       categories . delete,
-      userReports. delete,
-      eventUsers . delete
+      users      . delete
     )), Duration.Inf)
 
   def drop(): Unit ={

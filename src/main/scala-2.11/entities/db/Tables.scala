@@ -28,21 +28,40 @@ case class MapEvent(
                      description: Option[String] = None,
                      isEnded: Boolean = false,
                      userId: Option[Int] = None,
-                     id: Option[Int] = None)
+                     id: Option[Int] = None
+                   )
+
+case class MapEventAdapter(
+                            name: String,
+                            categoryId: Int,
+                            latitude: Double,
+                            longtitude: Double,
+                            date: Timestamp,
+                            nowPeople: Int = 0,
+                            maxPeople: Int = 0,
+                            reports: Option[Int] = None,
+                            description: Option[String] = None,
+                            isEnded: Boolean = false,
+                            userId: Option[Int] = None,
+                            id: Option[Int] = None
+                          )
+
 case class User(clientId: String, role: Int, id: Option[Int] = None)
 case class UserReport(userId: Int, eventId: Int)
 case class UserJoinEvent(userId: Int, deviceToken: String, eventId: Int)
 object EntitiesJsonProtocol extends DefaultJsonProtocol {
+
   implicit  object TimeJsonProtocol extends RootJsonFormat[Timestamp] {
     override def read(json: JsValue): Timestamp = new Timestamp(json.convertTo[Long])
     override def write(obj: Timestamp): JsValue = JsNumber(obj.getTime)
   }
+
   implicit val userFormat = jsonFormat3(User)
   implicit val eventUsersFormat = jsonFormat3(UserJoinEvent)
   implicit val mapEventFormat = jsonFormat11(MapEvent)
+  implicit val mapEventAdapterFormat = jsonFormat12(MapEventAdapter)
   implicit val mapCategoryFormat = jsonFormat2(MapCategory)
   implicit val userReportFormat = jsonFormat2(UserReport)
-
 }
 
 
@@ -66,14 +85,14 @@ class UserReports(tag: Tag) extends Table[UserReport](tag,"user_reports") {
 }
 
 class MapCategories(tag:Tag) extends Table[MapCategory](tag,"category") {
-  def id = column[Int]("cat_id",O.PrimaryKey,O.AutoInc)
-  def name = column[String]("name",O.SqlType("VARCHAR(127)"))
-  def * = (name,id.?) <> (MapCategory.tupled,MapCategory.unapply)
-  def unqiueIdx = index("idx_uniq_name",name,unique = true)
+  def id = column[Int]("cat_id", O.PrimaryKey,O.AutoInc)
+  def name = column[String]("name", O.SqlType("VARCHAR(127)"))
+  def * = (name,id.?) <> (MapCategory.tupled, MapCategory.unapply)
+  def unqiueIdx = index("idx_uniq_name", name, unique = true)
 }
 
-class MapEvents(tag:Tag) extends Table[MapEvent](tag,"events") {
-  def id = column[Int]("id",O.PrimaryKey,O.AutoInc)
+class MapEvents(tag: Tag) extends Table[MapEvent](tag, "events") {
+  def id = column[Int]("id", O.PrimaryKey,O.AutoInc)
   def name = column[String]("name")
   def description = column[Option[String]]("description")
   def catId = column[Int]("cat_id")
@@ -84,8 +103,8 @@ class MapEvents(tag:Tag) extends Table[MapEvent](tag,"events") {
   def date = column[Timestamp]("date")
   def latitude = column[Double]("latitude")
   def longtitude = column[Double]("longtitude")
-  def mapCategory = foreignKey("cat_fk",catId,Tables.categories)(_.id)
-  def mapUser = foreignKey("user_fk",userId,Tables.users)(_.id)
+  def mapCategory = foreignKey("cat_fk", catId, Tables.categories)(_.id)
+  def mapUser = foreignKey("user_fk", userId, Tables.users)(_.id)
   def * = (name, catId, latitude, longtitude, date,  maxPeople, report.?, description, isEnded, userId.?, id.?) <> (MapEvent.tupled,MapEvent.unapply)
 }
 
