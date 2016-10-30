@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, Actor}
 import akka.actor.Actor.Receive
 import com.typesafe.scalalogging.Logger
 import dao.EventsDAO
+import dao.filters.{EventFilters, ParametersFiltration}
 import entities.db.{MapEvent, User, UserReport}
 import response.{CategoryResponse, EventResponse}
 import service.EventService._
@@ -41,22 +42,22 @@ class EventService {
   def getUserEvents(user: User) = {
     eventsDAO.eventsByUserId(user.id.getOrElse(0))
   }
-  def getEventsAround = {
-    eventsDAO.allEventsWithPeople()
+  def getEventsAround(filters: EventFilters) = {
+    eventsDAO.getEvents(filters)
   }
   def getCategoryEvents(id: Int) = eventsDAO.eventsByCategoryId(id)
   def getUserEvents(id: Int) = eventsDAO.eventsByUserId(id)
   def getEvent(id: Int) = eventsDAO.get(id)
-  def getEventsInDistance(distance: Double, lon: Double, lat: Double) = eventsDAO.getNearestEventsByDistance(distance,lon,lat)
+  def getEventsInDistance(distance: Double, lon: Double, lat: Double, filters: EventFilters) = eventsDAO.getNearestEventsByDistance(distance,lon,lat, filters)
 }
 
 object EventService {
   case class AddEvent(event:MapEvent,user:User)
 
-  case class GetEvents()
+  case class GetEvents(filters: EventFilters)
   case class GetUserEvents(id: Int)
   case class GetEvent(id: Int)
-  case class GetEventsByDistance(distance: Double, longtitude: Double, latitude: Double)
+  case class GetEventsByDistance(distance: Double, longtitude: Double, latitude: Double, filters: EventFilters)
 
   case class UpdateEvent(event: MapEvent, user: User)
   case class ReportEvent(id: Int, user: User)
@@ -77,9 +78,9 @@ class EventServiceActor(eventService: EventService, remingderServiceActor: Actor
           t.printStackTrace()
           sended ! EventResponse.unexpectedError.toJson.prettyPrint
       }
-    case GetEvents() =>
+    case GetEvents(filters) =>
       val sended = sender()
-      eventService.getEventsAround.onComplete {
+      eventService.getEventsAround(filters).onComplete {
         case Success(result) =>
           logger.info(s"success when get events : " + result)
           sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
@@ -98,9 +99,9 @@ class EventServiceActor(eventService: EventService, remingderServiceActor: Actor
         case Success(event) => sended ! EventResponse.responseSuccess(Some(event)).toJson.prettyPrint
         case Failure(t) => sended ! EventResponse.notFoundError.toJson.prettyPrint
       }
-    case GetEventsByDistance(distance, longtitude, latitude) =>
+    case GetEventsByDistance(distance, longtitude, latitude, filters) =>
       val sended = sender()
-      eventService.getEventsInDistance(distance, longtitude, latitude).onComplete {
+      eventService.getEventsInDistance(distance, longtitude, latitude, filters).onComplete {
         case Success(events) => sended ! EventResponse.responseSuccess(Some(events)).toJson.prettyPrint
         case Failure(t) => sended ! EventResponse.unexpectedError.toJson.prettyPrint
       }

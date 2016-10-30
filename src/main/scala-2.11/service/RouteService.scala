@@ -3,6 +3,7 @@ package service
 import akka.actor._
 import akka.pattern.AskableActorRef
 import com.typesafe.scalalogging.Logger
+import dao.filters.EventFilters
 import service.RouteServiceActor._
 import akka.util.Timeout
 import entities.db.{EntitiesJsonProtocol, MapCategory, MapEvent, User}
@@ -47,7 +48,10 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
   }
 
 
-  override def sendGetEvents() = eventsServiceRef ? EventService.GetEvents()
+  override def sendGetEvents(param: Map[String,List[String]]) = {
+
+    eventsServiceRef ? EventService.GetEvents(new EventFilters(param))
+  }
   def receive = handleMessages orElse runRoute(myRoute)
 
   //это если актору надо принять наши сообщения
@@ -65,8 +69,10 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
   override def sendGetCategory(id: Int): Future[Any] = _categoryService ? CategoryService.GetCategory(id)
 
   override def sendGetCategories(): Future[Any] = _categoryService ? CategoryService.GetCategories()
+  override def sendGetCategoriesByPartOfName(subname: String): Future[Any] = _categoryService ? CategoryService.GetCategoriesByPartOfName(subname)
 
-  override def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double): Future[Any] = _eventService ? EventService.GetEventsByDistance(distance, longtitude, latitude)
+
+  override def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double, param: Map[String,List[String]]): Future[Any] = _eventService ? EventService.GetEventsByDistance(distance, longtitude, latitude, new EventFilters(param))
 
   override def sendUpdateEvents(event: MapEvent, user: User) = _eventService ? EventService.UpdateEvent(event, user)
 
@@ -109,20 +115,21 @@ trait RouteService extends HttpService {
 
   def sendAddEvent(event: MapEvent, user: User): Future[Any]
 
-  def sendGetEvents(): Future[Any]
+  def sendGetEvents(param: Map[String,List[String]]): Future[Any]
 
   def sendGetUserEvents(id: Int): Future[Any]
   def sendGetJoinedEvents(user: User): Future[Any]
 
   def sendGetEventsByCategoryId(id: Int): Future[Any]
 
-  def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double): Future[Any]
+  def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double, param: Map[String,List[String]]): Future[Any]
 
   def sendGetEvent(id: Int): Future[Any]
 
   def sendGetEventsByCategoryName(name: String): Future[Any]
 
   def sendGetCategories(): Future[Any]
+  def sendGetCategoriesByPartOfName(subname: String): Future[Any]
 
   def sendGetCategory(id: Int): Future[Any]
 
@@ -174,6 +181,11 @@ trait RouteService extends HttpService {
   }
 
   def category(user: User) = pathPrefix("category") {
+    parameter("subname".as[String]) { subname =>
+      onComplete(sendGetCategoriesByPartOfName(subname)) { tryAny =>
+        defaultResponse(tryAny, s"GET /category?subname=" + subname)
+      }
+    } ~
     pathPrefix(IntNumber) {
       id => {
         path("event") {
@@ -211,16 +223,15 @@ trait RouteService extends HttpService {
             entity(as[MapCategory]) {
               category =>
 
-                onComplete(sendCreateCategory(category.name)) {
-                  logger.info(s"POST category/ data:$category")
-                  defaultResponse
+                onComplete(sendCreateCategory(category.name)) { tryAny =>
+                  defaultResponse(tryAny, s"POST category/ data:$category")
                 }
             }
           }  ~ complete("no required parameters")
       }
   }
 
-  def event(user: User) = pathPrefix("event") {
+  def event(user: User, params: Map[String,List[String]]) = pathPrefix("event") {
     pathPrefix(IntNumber) {
       id =>
         path("report") {
@@ -269,7 +280,7 @@ trait RouteService extends HttpService {
     } ~
     pathEnd {
       get {
-        onComplete(sendGetEvents()) {
+        onComplete(sendGetEvents(params)) {
           logger.info(s"GET event/")
           defaultResponse
         }
@@ -298,7 +309,7 @@ trait RouteService extends HttpService {
           parameter("latitude".as[Double], "longtitude".as[Double]) {
             (latitude, longtitude) =>
               get {
-                onComplete(sendGetEventsDistance(distance, latitude, longtitude)) {
+                onComplete(sendGetEventsDistance(distance, latitude, longtitude, params)) {
                   logger.info(s"GET event/distance/$distance Latittude $latitude and $longtitude")
                   defaultResponse
                 }
@@ -331,14 +342,14 @@ trait RouteService extends HttpService {
     }
   }
   def getRoute = myRoute
-  def sessionRequiredRoutes(token: String, clientId: String) = {
+  def sessionRequiredRoutes(token: String, clientId: String, params: Map[String, List[String]]) = {
     onSuccess(sendIsAuthorized(clientId)){
       case result =>
         logger.info("Is Authorized " + result)
         JsonParser(result.asInstanceOf[String]).convertTo[AccountResponse.ResponseSuccess[User]].data match {
           case Some(u) =>
             logger.debug(s"USER: $u")
-            event(u) ~
+            event(u,params) ~
             category(u)
           case None => {
             logger.info(s"No auth for $clientId")
@@ -347,10 +358,11 @@ trait RouteService extends HttpService {
         }
     }
   }
-  val authRoutes = (headerValueByName("Token") & headerValueByName("ClientId")) { (token, clientId) =>
+  val authRoutes = (headerValueByName("Token") & headerValueByName("ClientId") & parameterMultiMap) { (token, clientId,params) =>
     logger.info("Auth with ClientId " + clientId + " token " + token)
+    logger.info("Params " + params)
     auth(token, clientId) ~
-    sessionRequiredRoutes(token, clientId)
+    sessionRequiredRoutes(token, clientId, params)
   } ~
   complete(StatusCodes.Unauthorized, "No some headers")
 
