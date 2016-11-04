@@ -87,12 +87,13 @@ class EventServiceActor(eventService: EventService, remingderServiceActor: Actor
       }
     case GetUserEvents(id) =>
       val sended = sender()
-      eventService.getUserEvents(id).onSuccess {
+      new EventsServiceFetcher(eventService.getUserEvents(id)).fetch().onSuccess {
         case eventsSeq => sended ! EventResponse.responseSuccess(Some(eventsSeq)).toJson.prettyPrint
       }
     case GetEvent(id) =>
       val sended = sender()
-      eventService.getEvent(id).onComplete {
+      val eventFuture = eventService.getEvent(id).map(Seq(_))
+      new EventsServiceFetcher(eventFuture).fetch().onComplete {
         case Success(event) => sended ! EventResponse.responseSuccess(Some(event)).toJson.prettyPrint
         case Failure(t) => sended ! EventResponse.notFoundError.toJson.prettyPrint
       }
