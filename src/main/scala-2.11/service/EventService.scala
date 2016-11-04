@@ -3,12 +3,13 @@ package service
 import akka.actor.{ActorRef, Actor}
 import akka.actor.Actor.Receive
 import com.typesafe.scalalogging.Logger
-import dao.EventsDAO
-import dao.filters.{EventFilters, ParametersFiltration}
-import entities.db.{MapEvent, User, UserReport}
+import dao.{CategoryDAO, EventsDAO}
+import dao.filters.{CategoryFilters, EventFilters, ParametersFiltration}
+import entities.db._
 import response.{CategoryResponse, EventResponse}
 import service.EventService._
 
+import scala.collection.generic.CanBuildFrom
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
@@ -35,9 +36,6 @@ class EventService {
   }
   def addSimpleEvent(event: MapEvent, user: User) = {
     eventsDAO.create(event.copy(userId = user.id))
-  }
-  def joinEvent(id: Int, user: User, deviceToken: String) = {
-
   }
   def getUserEvents(user: User) = {
     eventsDAO.eventsByUserId(user.id.getOrElse(0))
@@ -79,7 +77,7 @@ class EventServiceActor(eventService: EventService, remingderServiceActor: Actor
       }
     case GetEvents(filters) =>
       val sended = sender()
-      eventService.getEventsAround(filters).onComplete {
+      new EventsServiceFetcher(eventService.getEventsAround(filters)).fetch().onComplete {
         case Success(result) =>
           logger.info(s"success when get events : " + result)
           sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
@@ -100,7 +98,7 @@ class EventServiceActor(eventService: EventService, remingderServiceActor: Actor
       }
     case GetEventsByDistance(distance, longtitude, latitude, filters) =>
       val sended = sender()
-      eventService.getEventsInDistance(distance, longtitude, latitude, filters).onComplete {
+      new EventsServiceFetcher(eventService.getEventsInDistance(distance, longtitude, latitude, filters)).fetch().onComplete {
         case Success(events) => sended ! EventResponse.responseSuccess(Some(events)).toJson.prettyPrint
         case Failure(t) => sended ! EventResponse.unexpectedError.toJson.prettyPrint
       }
@@ -120,4 +118,37 @@ class EventServiceActor(eventService: EventService, remingderServiceActor: Actor
         case Failure(t) => sended ! EventResponse.alreadyReport.toJson.prettyPrint
       }
   }
+}
+
+class EventsServiceFetcher(eventsFuture: Future[Seq[MapEvent]]) {
+  val categoryDAO = new CategoryDAO()
+  val eventsDAO = new EventsDAO()
+  def fetch(): Future[Seq[MapEventAdapter]] = {
+    eventsFuture.flatMap((f:Seq[MapEvent]) => {
+      fetchCategory(f)
+    })
+  }
+  private def fetchCategory(events: Seq[MapEvent]): Future[Seq[MapEventAdapter]] = {
+    val catIds = events.map(_.categoryId).toSet
+    val params = Map("category:id" -> catIds.map(_.toString).toList)
+    categoryDAO.getCategories(new CategoryFilters(params)).map((categories:Seq[MapCategory]) => {
+      events.map((mapEvent: MapEvent) => {
+        MapEventAdapter(
+          mapEvent.name,
+          categories.find(_.id.get == mapEvent.categoryId).getOrElse(MapCategory("",None)),
+          mapEvent.latitude,
+          mapEvent.longtitude,
+          mapEvent.date,
+          eventsDAO.getCountUsersInEvent(mapEvent.id.getOrElse(0)),
+          mapEvent.maxPeople,
+          mapEvent.reports,
+          mapEvent.description,
+          mapEvent.isEnded,
+          mapEvent.userId,
+          mapEvent.id
+        )
+      })
+    })
+  }
+
 }

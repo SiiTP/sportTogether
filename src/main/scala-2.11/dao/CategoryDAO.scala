@@ -1,5 +1,6 @@
 package dao
 
+import dao.filters.CategoryFilters
 import entities.db.{MapCategory, MapEvent, MapEvents, Tables}
 import slick.driver.MySQLDriver.api._
 
@@ -23,7 +24,9 @@ class CategoryDAO extends DatabaseDAO[MapCategory,Int]{
     execute(seq.result)
   }
 
-  def getCategories = execute(table.result)
+  def getCategories(filter: CategoryFilters) = {
+    execute(filter.createQueryWithFilter(table).result)
+  }
 
   def getCategoryByName(name: String) = execute(table.filter(_.name === name).result)
 

@@ -2,6 +2,7 @@ package service
 
 import akka.actor.Actor
 import dao.CategoryDAO
+import dao.filters.CategoryFilters
 import entities.db.MapCategory
 import response.CategoryResponse
 
@@ -19,12 +20,12 @@ class CategoryService {
 
   def getEventsByCategoryName(name: String) = categoryDAO.eventsByCategoryName(name)
   def createCategory(name: String) = categoryDAO.create(MapCategory(name))
-  def getAllCategories = categoryDAO.getCategories
+  def getAllCategories(filter: CategoryFilters) = categoryDAO.getCategories(filter)
   def getCategoryById(id: Int) = categoryDAO.get(id)
 }
 
 object CategoryService{
-  case class GetCategories()
+  case class GetCategories(filter: CategoryFilters)
   case class GetCategoriesByPartOfName(name: String)
   case class GetCategory(id: Int)
   case class CreateCategory(name: String)
@@ -42,9 +43,9 @@ class CategoryServiceActor(categoryService: CategoryService) extends Actor{
         case Failure(t) => sended ! CategoryResponse.alreadyExistError.toJson.prettyPrint
       }
 
-    case GetCategories() =>
+    case GetCategories(filter) =>
       val sended = sender()
-      categoryService.getAllCategories.onComplete {
+      categoryService.getAllCategories(filter).onComplete {
         case Success(cateogries) => sended ! CategoryResponse.responseSuccess(Some(cateogries)).toJson.prettyPrint
         case Failure(t) => sended ! CategoryResponse.unexpectedError.toJson.prettyPrint
       }

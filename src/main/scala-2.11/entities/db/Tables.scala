@@ -33,7 +33,7 @@ case class MapEvent(
 
 case class MapEventAdapter(
                             name: String,
-                            categoryId: Int,
+                            category: MapCategory,
                             latitude: Double,
                             longtitude: Double,
                             date: Timestamp,
@@ -59,8 +59,8 @@ object EntitiesJsonProtocol extends DefaultJsonProtocol {
   implicit val userFormat = jsonFormat3(User)
   implicit val eventUsersFormat = jsonFormat3(UserJoinEvent)
   implicit val mapEventFormat = jsonFormat11(MapEvent)
-  implicit val mapEventAdapterFormat = jsonFormat12(MapEventAdapter)
   implicit val mapCategoryFormat = jsonFormat2(MapCategory)
+  implicit val mapEventAdapterFormat = jsonFormat12(MapEventAdapter)
   implicit val userReportFormat = jsonFormat2(UserReport)
 }
 
