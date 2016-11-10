@@ -4,9 +4,9 @@ import akka.actor.{Actor, ActorRef}
 import akka.actor.Actor.Receive
 import com.typesafe.scalalogging.Logger
 import dao.{EventUsersDAO, EventsDAO}
-import entities.db.{MapEvent, User, UserJoinEvent}
+import entities.db.{MapEvent, MapEventAdapter, User, UserJoinEvent}
 import response.{EventResponse, JoinServiceResponse, MyResponse}
-import service.JoinEventService.{AddUserToEvent, GetEventsOfUser}
+import service.JoinEventService.{AddUserToEvent, GetEventsOfUserJoined}
 import entities.db.EntitiesJsonProtocol._
 import spray.json.{JsNumber, JsObject, JsString}
 
@@ -28,14 +28,14 @@ class JoinEventService {
     eventUsersDAO.create(userJoinEvent)
   }
 
-  def getEventsOfUser(user: User): Future[Seq[MapEvent]] = {
+  def getEventsOfUserJoined(user: User): Future[Seq[MapEventAdapter]] = {
 
-    eventUsersDAO.getEventsOfUser(user).flatMap {
+    eventUsersDAO.getEventsOfUserJoined(user).flatMap {
       case userEvents => Future.successful(userEvents)
     } recoverWith {
       case e: Throwable =>
         logger.info(s"error of userEventsDAO : " + e.getMessage)
-        Future.successful(Seq.empty[MapEvent])
+        Future.successful(Seq.empty[MapEventAdapter])
     }
   }
 
@@ -62,11 +62,12 @@ class JoinEventService {
 
 object JoinEventService {
   case class AddUserToEvent(eventId: Int, user: User, token: String)
-  case class GetEventsOfUser(user: User)
+  case class GetEventsOfUserJoined(user: User)
 }
 
 /**
   * тут кароче небольшая обертка над sender(), используется в map ниже
+ *
   * @param sender
   */
 class SenderHelper(sender: ActorRef) {
@@ -99,12 +100,11 @@ class JoinEventServiceActor(_fcmService: ActorRef) extends Actor {
           sended.answer(JoinServiceResponse.unexpectedError.toJson.prettyPrint)
       }
 
-    case GetEventsOfUser(user) =>
+    case GetEventsOfUserJoined(user) =>
       val sended = sender()
-      service.getEventsOfUser(user).onComplete {
+      service.getEventsOfUserJoined(user).onComplete {
         case Success(result) =>
-          println("### " + result)
-          sended ! JoinServiceResponse.responseSuccess[Seq[MapEvent]](Some(result)).toJson.prettyPrint
+          sended ! JoinServiceResponse.responseSuccess[Seq[MapEventAdapter]](Some(result)).toJson.prettyPrint
         case Failure(e) =>
           e.printStackTrace()
           sended ! JoinServiceResponse.unexpectedError.toJson.prettyPrint

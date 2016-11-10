@@ -13,6 +13,7 @@ class EventUsersDAO extends DatabaseDAO[UserJoinEvent, Int]{
 
   private val table = Tables.eventUsers
   private val tableEvent = Tables.events
+  private val eventsDAO = new EventsDAO()
   private val logger = Logger("webApp")
 
   override def create(r: UserJoinEvent): Future[UserJoinEvent] = {
@@ -35,12 +36,27 @@ class EventUsersDAO extends DatabaseDAO[UserJoinEvent, Int]{
     execute(query.result)
   }
 
-  def getEventsOfUser(user: User): Future[Seq[MapEvent]] = {
+  def getEventsOfUserJoined(user: User): Future[Seq[MapEventAdapter]] = {
     val idUser = user.id.getOrElse(0)
     val seq = for {
       (e, rel) <- tableEvent join table on (_.id === _.eventId ) if rel.userId === idUser
     } yield e
-    execute(seq.result)
+    val result: Future[Seq[MapEvent]] = execute(seq.result)
+    logger.info("IN USERS JOINED")
+    result.map(seq => seq.map(mapEvent => MapEventAdapter(
+      mapEvent.name,
+      MapCategory("", Some(mapEvent.categoryId)),
+      mapEvent.latitude,
+      mapEvent.longtitude,
+      mapEvent.date,
+      eventsDAO.getCountUsersInEvent(mapEvent.id.getOrElse(0)),
+      mapEvent.maxPeople,
+      mapEvent.reports,
+      mapEvent.description,
+      mapEvent.isEnded,
+      mapEvent.userId,
+      mapEvent.id
+    )))
   }
 
   override def get(r: Int): Future[UserJoinEvent] = ???

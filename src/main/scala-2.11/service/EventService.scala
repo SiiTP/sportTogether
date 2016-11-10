@@ -124,6 +124,7 @@ class EventServiceActor(eventService: EventService, remingderServiceActor: Actor
 class EventsServiceFetcher(eventsFuture: Future[Seq[MapEvent]]) {
   val categoryDAO = new CategoryDAO()
   val eventsDAO = new EventsDAO()
+  val logger = Logger("webApp")
   def fetch(): Future[Seq[MapEventAdapter]] = {
     eventsFuture.flatMap((f:Seq[MapEvent]) => {
       fetchCategory(f)
@@ -134,6 +135,7 @@ class EventsServiceFetcher(eventsFuture: Future[Seq[MapEvent]]) {
     val params = Map("category:id" -> catIds.map(_.toString).toList)
     categoryDAO.getCategories(new CategoryFilters(params)).map((categories:Seq[MapCategory]) => {
       events.map((mapEvent: MapEvent) => {
+        logger.debug("fetching to event adapter now")
         MapEventAdapter(
           mapEvent.name,
           categories.find(_.id.get == mapEvent.categoryId).getOrElse(MapCategory("",None)),

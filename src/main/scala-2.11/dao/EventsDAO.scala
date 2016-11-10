@@ -58,25 +58,26 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
     execute(newQuery)
   }
 
-  def allEventsWithPeople(): Future[Seq[MapEventAdapter]] = {
-    val result: Future[Seq[MapEvent]] = execute(table.sortBy(_.report).result)
-    result.map(seq => seq.map(mapEvent => MapEventAdapter(
-      mapEvent.name,
-      MapCategory("",Some(mapEvent.categoryId)),
-      mapEvent.latitude,
-      mapEvent.longtitude,
-      mapEvent.date,
-      getCountUsersInEvent(mapEvent.id.getOrElse(0)),
-      mapEvent.maxPeople,
-      mapEvent.reports,
-      mapEvent.description,
-      mapEvent.isEnded,
-      mapEvent.userId,
-      mapEvent.id
-    )))
-  }
+//  def allEventsWithPeople(): Future[Seq[MapEventAdapter]] = {
+//    val result: Future[Seq[MapEvent]] = execute(table.sortBy(_.report).result)
+//    result.map(seq => seq.map(mapEvent => MapEventAdapter(
+//      mapEvent.name,
+//      MapCategory("",Some(mapEvent.categoryId)),
+//      mapEvent.latitude,
+//      mapEvent.longtitude,
+//      mapEvent.date,
+//      getCountUsersInEvent(mapEvent.id.getOrElse(0)),
+//      mapEvent.maxPeople,
+//      mapEvent.reports,
+//      mapEvent.description,
+//      mapEvent.isEnded,
+//      mapEvent.userId,
+//      mapEvent.id
+//    )))
+//  }
 
   def getCountUsersInEvent(idEvent: Int) = {
+    println("\nin get count users")
     val countFuture: Future[Int] = execute(Tables.eventUsers.filter(_.eventId === idEvent).countDistinct.result)
     val countSuccessFuture = countFuture.recoverWith {
       case e: Throwable =>

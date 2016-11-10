@@ -82,7 +82,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
 
 
   override def sendUserJoinEvent(user: User, eventId: Int, token: String): Future[Any] = _joinEventService ? JoinEventService.AddUserToEvent(eventId, user, token)
-  override def sendGetJoinedEvents(user: User) = _joinEventService ? JoinEventService.GetEventsOfUser(user)
+  override def sendGetJoinedEvents(user: User) = _joinEventService ? JoinEventService.GetEventsOfUserJoined(user)
 
 
   override def testMessageSend(token: String): Future[Any] = _fcmService ? FcmService.SendMessage(Array(token),JsObject("hello" -> JsString("world"), "id" -> JsNumber(5), "bools" -> JsBoolean(true)))
