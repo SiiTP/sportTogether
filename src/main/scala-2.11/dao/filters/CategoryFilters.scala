@@ -28,15 +28,22 @@ class CategoryFilters(_paramMap: Map[String,List[String]]) extends ParametersFil
 
 object CategoryFilters {
   private val filters = scala.collection.immutable.Map(
-    ("category:name", (values: List[String]) =>{
+    ("name", (values: List[String]) =>{
       if (values.size == 1) {
         (f:MapCategories) => f.name === values.head
       } else {
         (f:MapCategories) => f.name inSet values
       }
     }),
-    ("category:nameContains", (values: List[String]) => {
+    ("nameContains", (values: List[String]) => {
       (f:MapCategories) => f.name like values.head
+    }),
+    ("id", (values: List[String]) =>{
+      if (values.size == 1) {
+        (f:MapCategories) => f.id === values.head.toInt
+      } else {
+        (f:MapCategories) => f.id inSet values.map(_.toInt)
+      }
     })
   )
 }

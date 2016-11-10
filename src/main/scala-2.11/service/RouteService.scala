@@ -3,7 +3,7 @@ package service
 import akka.actor._
 import akka.pattern.AskableActorRef
 import com.typesafe.scalalogging.Logger
-import dao.filters.EventFilters
+import dao.filters.{CategoryFilters, EventFilters}
 import service.RouteServiceActor._
 import akka.util.Timeout
 import entities.db.{EntitiesJsonProtocol, MapCategory, MapEvent, User}
@@ -68,7 +68,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
 
   override def sendGetCategory(id: Int): Future[Any] = _categoryService ? CategoryService.GetCategory(id)
 
-  override def sendGetCategories(): Future[Any] = _categoryService ? CategoryService.GetCategories()
+  override def sendGetCategories(param: Map[String,List[String]]): Future[Any] = _categoryService ? CategoryService.GetCategories(new CategoryFilters(param))
   override def sendGetCategoriesByPartOfName(subname: String): Future[Any] = _categoryService ? CategoryService.GetCategoriesByPartOfName(subname)
 
 
@@ -128,7 +128,7 @@ trait RouteService extends HttpService {
 
   def sendGetEventsByCategoryName(name: String): Future[Any]
 
-  def sendGetCategories(): Future[Any]
+  def sendGetCategories(param: Map[String,List[String]]): Future[Any]
   def sendGetCategoriesByPartOfName(subname: String): Future[Any]
 
   def sendGetCategory(id: Int): Future[Any]
@@ -180,7 +180,7 @@ trait RouteService extends HttpService {
       }
   }
 
-  def category(user: User) = pathPrefix("category") {
+  def category(user: User, params: Map[String,List[String]]) = pathPrefix("category") {
     (pathEnd & parameter("subname".as[String])) { subname =>
       onComplete(sendGetCategoriesByPartOfName(subname)) { tryAny =>
         defaultResponse(tryAny, s"GET /category?subname=" + subname)
@@ -200,7 +200,7 @@ trait RouteService extends HttpService {
       pathEnd {
         get {
 
-          onComplete(sendGetCategories()) { tryAny =>
+          onComplete(sendGetCategories(params)) { tryAny =>
             defaultResponse(tryAny, s"GET category/")
           }
         } ~
@@ -333,11 +333,10 @@ trait RouteService extends HttpService {
           case Some(u) =>
             logger.debug(s"USER: $u")
             event(u,params) ~
-            category(u)
-          case None => {
+            category(u, params)
+          case None =>
             logger.info(s"No auth for $clientId")
             complete(AccountResponse.responseNotAuthorized.toJson.prettyPrint)
-          }
         }
     }
   }

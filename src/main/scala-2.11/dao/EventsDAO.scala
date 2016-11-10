@@ -62,7 +62,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
     val result: Future[Seq[MapEvent]] = execute(table.sortBy(_.report).result)
     result.map(seq => seq.map(mapEvent => MapEventAdapter(
       mapEvent.name,
-      mapEvent.categoryId,
+      MapCategory("",Some(mapEvent.categoryId)),
       mapEvent.latitude,
       mapEvent.longtitude,
       mapEvent.date,
