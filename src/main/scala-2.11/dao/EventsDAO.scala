@@ -19,8 +19,9 @@ import scala.util.{Failure, Success}
   */
 class EventsDAO extends DatabaseDAO[MapEvent,Int] {
   private val table = Tables.events
-  private val reportsTable = Tables.userReports
 
+
+  private val reportsTable = Tables.userReports
   override def create(r: MapEvent): Future[MapEvent] = {
     val c = r.copy(reports = Some(0))
     val insert = (table returning table.map(_.id)).into((item, id) => item.copy(id = Some(id)))
@@ -37,6 +38,11 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
   override def get(eventId: Int): Future[MapEvent] = execute(table.filter(_.id === eventId).result.head)
 
   override def delete(r: MapEvent): Future[Int] = execute(table.filter(_.id === r.id).delete)
+
+  def endEvent(id: Int, userId: Int) = {
+    val query = for {c <- table if c.userId === userId && c.id === id} yield c.isEnded
+    execute(query.update(true))
+  }
 
   def reportEvent(id: Int, user: User) = {
 
@@ -76,7 +82,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
     )))
   }
 
-  def getCountUsersInEvent(idEvent: Int) = {
+  def getCountUsersInEvent(idEvent: Int): Some[Int] = {
     val countFuture: Future[Int] = execute(Tables.eventUsers.filter(_.eventId === idEvent).countDistinct.result)
     val countSuccessFuture = countFuture.recoverWith {
       case e: Throwable =>
@@ -85,7 +91,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
     }
     val count: Int = Await.result(countSuccessFuture, Duration(2, duration.SECONDS))
     println("count of event " + idEvent + " : " + count)
-    count
+    Some(count)
   }
 
 

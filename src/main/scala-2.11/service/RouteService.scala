@@ -6,12 +6,13 @@ import com.typesafe.scalalogging.Logger
 import dao.filters.{CategoryFilters, EventFilters}
 import service.RouteServiceActor._
 import akka.util.Timeout
-import entities.db.{EntitiesJsonProtocol, MapCategory, MapEvent, User}
+import entities.db._
 import entities.db.EntitiesJsonProtocol._
 import response.{AccountResponse, CategoryResponse, EventResponse, MyResponse}
 import service.AccountService.AccountHello
 import service.RouteServiceActor.{IsAuthorized, RouteHello}
 import spray.routing._
+import spray.routing.directives.OnCompleteFutureMagnet
 
 import scala.concurrent.duration._
 import scala.concurrent.duration.Duration
@@ -59,7 +60,10 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
     case AccountHello(msg) => println("hello from account : " + msg)
 
   }
-  override def sendAddEvent(event: MapEvent, user: User) = eventsServiceRef ? EventService.AddEvent(event, user)
+  override def sendAddEvent(event: MapEventAdapter, user: User) = {
+            eventsServiceRef ? EventService.AddEvent(event,user)
+
+  }
   override def sendGetUserEvents(id:Int) = eventsServiceRef ? EventService.GetUserEvents(id)
 
   override def sendGetEvent(id: Int) = eventsServiceRef ? EventService.GetEvent(id)
@@ -75,7 +79,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
   override def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double, param: Map[String,List[String]]): Future[Any] = _eventService ? EventService.GetEventsByDistance(distance, longtitude, latitude, new EventFilters(param))
 
   override def sendUpdateEvents(event: MapEvent, user: User) = _eventService ? EventService.UpdateEvent(event, user)
-
+  override def sendFinishEvent(id: Int, user: User): Future[Any] = _eventService ? EventService.FinishEvent(id, user)
   override def sendReportEvent(id: Int, user: User) = _eventService ? EventService.ReportEvent(id, user)
   override def sendGetEventsByCategoryId(id: Int) = _eventService ? EventService.GetEventsByCategoryId(id)
   override def sendGetEventsByCategoryName(name: String) = _categoryService ? CategoryService.GetEventsByCategoryName(name)
@@ -113,7 +117,7 @@ trait RouteService extends HttpService {
 
   def sendUnauthorize(session: String): Future[Any]
 
-  def sendAddEvent(event: MapEvent, user: User): Future[Any]
+  def sendAddEvent(event: MapEventAdapter, user: User): Future[Any]
 
   def sendGetEvents(param: Map[String,List[String]]): Future[Any]
 
@@ -136,7 +140,7 @@ trait RouteService extends HttpService {
   def sendCreateCategory(name: String): Future[Any]
 
   def sendReportEvent(id: Int, user: User): Future[Any]
-
+  def sendFinishEvent(id: Int, user: User): Future[Any]
   def sendUpdateEvents(event: MapEvent, user: User): Future[Any]
   def sendUserJoinEvent(user: User, eventId: Int, token: String): Future[Any]
 
@@ -216,6 +220,8 @@ trait RouteService extends HttpService {
       } ~ complete(CategoryResponse.unexpectedPath.toJson.prettyPrint)
   }
 
+
+
   def event(user: User, params: Map[String,List[String]]) = pathPrefix("event") {
     pathPrefix(IntNumber) {
       id =>
@@ -255,6 +261,12 @@ trait RouteService extends HttpService {
                 defaultResponse
               }
             }
+          } ~
+          delete {
+            onComplete(sendFinishEvent(id, user))  {
+              logger.info(s"DELETE event/$id")
+              defaultResponse
+            }
           }
         }
     } ~
@@ -270,8 +282,7 @@ trait RouteService extends HttpService {
         }
       } ~
         post {
-          entity(as[MapEvent]) { event =>
-
+          entity(as[MapEventAdapter]) { event =>
             onComplete(sendAddEvent(event, user)) { tryAny =>
               defaultResponse(tryAny, s"POST event/ data:$event")
             }

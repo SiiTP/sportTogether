@@ -37,15 +37,18 @@ case class MapEventAdapter(
                             latitude: Double,
                             longtitude: Double,
                             date: Timestamp,
-                            nowPeople: Int = 0,
+                            nowPeople: Option[Int] = None,
                             maxPeople: Int = 0,
                             reports: Option[Int] = None,
                             description: Option[String] = None,
                             isEnded: Boolean = false,
                             userId: Option[Int] = None,
                             id: Option[Int] = None
-                          )
-
+                          ) {
+  def toMapEvent : MapEvent = {
+    MapEvent(name,category.id.get, latitude, longtitude, date, maxPeople, reports, description, isEnded, userId, id)
+  }
+}
 case class User(clientId: String, role: Int, id: Option[Int] = None)
 case class UserReport(userId: Int, eventId: Int)
 case class UserJoinEvent(userId: Int, deviceToken: String, eventId: Int)
