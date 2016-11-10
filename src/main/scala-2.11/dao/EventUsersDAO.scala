@@ -42,7 +42,6 @@ class EventUsersDAO extends DatabaseDAO[UserJoinEvent, Int]{
       (e, rel) <- tableEvent join table on (_.id === _.eventId ) if rel.userId === idUser
     } yield e
     val result: Future[Seq[MapEvent]] = execute(seq.result)
-    logger.info("IN USERS JOINED")
     result.map(seq => seq.map(mapEvent => MapEventAdapter(
       mapEvent.name,
       MapCategory("", Some(mapEvent.categoryId)),

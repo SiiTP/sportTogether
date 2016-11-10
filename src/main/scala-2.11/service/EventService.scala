@@ -121,6 +121,7 @@ class EventServiceActor(eventService: EventService, remingderServiceActor: Actor
   }
 }
 
+//TODO может сделать объектом а методы статическими, чтобы использовать везде
 class EventsServiceFetcher(eventsFuture: Future[Seq[MapEvent]]) {
   val categoryDAO = new CategoryDAO()
   val eventsDAO = new EventsDAO()
