@@ -33,7 +33,7 @@
     <list />
   </option>
   <option name="parametersEnabled" value="true" />
-  <option name="haveTextToSend" value="false" />
+  <option name="haveTextToSend" value="true" />
   <option name="haveFileToSend" value="false" />
   <option name="isFileUpload" value="false" />
   <option name="textToSend" value="{&quot;name&quot;:&quot;testing&quot;, &quot;description&quot;: &quot;descr&quot;, &quot;categoryId&quot;:1,&quot;longtitude&quot;:53,&quot;latitude&quot;:110, &quot;date&quot;:1495617650064,&quot;maxPeople&quot;:0, &quot;isEnded&quot;: false} " />
