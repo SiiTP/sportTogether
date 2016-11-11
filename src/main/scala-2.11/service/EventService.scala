@@ -2,6 +2,7 @@ package service
 
 import akka.actor.{ActorRef, Actor}
 import akka.actor.Actor.Receive
+import akka.pattern.AskableActorRef
 import com.typesafe.scalalogging.Logger
 import dao.{CategoryDAO, EventsDAO}
 import dao.filters.{CategoryFilters, EventFilters, ParametersFiltration}
@@ -21,6 +22,7 @@ import scala.concurrent.duration._
   * Created by ivan on 25.09.16.
   */
 class EventService {
+  val logger = Logger("webApp")
   private val eventsDAO = new EventsDAO()
 
   def updateEvent(event: MapEvent, user: User): Future[Int] = {
@@ -31,6 +33,20 @@ class EventService {
       }
     }
   }
+
+  def updateResult(event: MapEventResultAdapter, user: User): Future[Int] = {
+    //TODO check user id = id creator
+    getEvent(event.id).flatMap {
+        mapEvent => {
+          val updatedEvent = mapEvent.copy(result = event.result)
+          logger.info("updating event : " + updatedEvent)
+          eventsDAO.update(updatedEvent)
+        }
+    }.recoverWith {
+      case e: Throwable => Future.successful(0)
+    }
+  }
+
   def reportEvent(id: Int, user: User) = {
     eventsDAO.reportEvent(id, user)
   }
@@ -43,13 +59,16 @@ class EventService {
   def getEventsAround(filters: EventFilters) = {
     eventsDAO.getEvents(filters)
   }
+  def finishEvent(id: Int, user: User) = {
+    eventsDAO.endEvent(id, user.id.getOrElse(0))
+  }
   def getUserEvents(id: Int) = eventsDAO.eventsByUserId(id)
   def getEvent(id: Int) = eventsDAO.get(id)
   def getEventsInDistance(distance: Double, lon: Double, lat: Double, filters: EventFilters) = eventsDAO.getNearestEventsByDistance(distance,lon,lat, filters)
 }
 
 object EventService {
-  case class AddEvent(event:MapEvent,user:User)
+  case class AddEvent(event: MapEventAdapter,user: User)
 
   case class GetEvents(filters: EventFilters)
   case class GetUserEvents(id: Int)
@@ -59,21 +78,39 @@ object EventService {
   case class UpdateEvent(event: MapEvent, user: User)
   case class ReportEvent(id: Int, user: User)
   case class GetEventsByCategoryId(id: Int)
+
+  case class FinishEvent(id: Int, user: User)
+
+  case class UpdateEventResult(event: MapEventResultAdapter, user: User)
+
 }
-class EventServiceActor(eventService: EventService, remingderServiceActor: ActorRef) extends Actor {
+class EventServiceActor(eventService: EventService, remingderServiceActor: ActorRef, categoyService: CategoryService) extends Actor {
   val logger = Logger("webApp")
+
 
   override def receive = {
     case AddEvent(event,user) =>
-      val response = eventService.addSimpleEvent(event,user)
       val sended = sender()
-      response.onComplete {
-        case Success(result) =>
-          sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
-          remingderServiceActor ! ReminderService.Add(result)
-        case Failure(t) =>
-          t.printStackTrace()
-          sended ! EventResponse.unexpectedError.toJson.prettyPrint
+      categoyService.getAllCategories(new CategoryFilters(Map("category:name"-> List(event.category.name)))).onSuccess {
+        case categories =>
+          logger.debug("found categories match names " + categories)
+          var response: Future[MapEvent] = null
+          if (categories.nonEmpty) {
+            response = eventService.addSimpleEvent(event.copy(category = categories.head).toMapEvent,user)
+          } else {
+            response = categoyService.createCategory(event.category.name).flatMap((category: MapCategory) => {
+              logger.debug("created new category: " + category)
+              eventService.addSimpleEvent(event.copy(category = category).toMapEvent,user)
+            })
+          }
+          new EventsServiceFetcher(null).fetchOne(response).onComplete {
+            case Success(result) =>
+              sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
+              remingderServiceActor ! ReminderService.Add(result.toMapEvent)
+            case Failure(t) =>
+              t.printStackTrace()
+              sended ! EventResponse.unexpectedError.toJson.prettyPrint
+          }
       }
     case GetEvents(filters) =>
       val sended = sender()
@@ -103,7 +140,10 @@ class EventServiceActor(eventService: EventService, remingderServiceActor: Actor
         case Success(events) => sended ! EventResponse.responseSuccess(Some(events)).toJson.prettyPrint
         case Failure(t) => sended ! EventResponse.unexpectedError.toJson.prettyPrint
       }
+
     case UpdateEvent(event, user) =>
+      logger.debug("UPDATING " + event + " \nUSER " + user)
+
       val sended = sender()
       eventService.updateEvent(event,user).onComplete {
         case Success(updatedEvent) if updatedEvent > 0 =>
@@ -112,9 +152,28 @@ class EventServiceActor(eventService: EventService, remingderServiceActor: Actor
           sended ! EventResponse.unexpectedError.toJson.prettyPrint
         case Failure(t) => sended ! EventResponse.unexpectedError.toJson.prettyPrint
       }
+
+    case UpdateEventResult(event, user) =>
+      logger.debug("updating result " + event + " \nUSER " + user)
+
+      val sended = sender()
+      eventService.updateResult(event, user).onComplete {
+        case Success(updatedEvent) if updatedEvent > 0 =>
+          sended ! EventResponse.responseSuccess[MapEvent](None).toJson.prettyPrint
+        case Success(updatedEvent) if updatedEvent == 0 =>
+          sended ! EventResponse.notFoundError.toJson.prettyPrint
+        case Failure(t) => sended ! EventResponse.unexpectedError.toJson.prettyPrint
+      }
+
     case ReportEvent(id, user) =>
       val sended = sender()
       eventService.reportEvent(id, user).onComplete {
+        case Success(result) => sended ! EventResponse.responseSuccess(Some(UserReport(user.id.get,id))).toJson.prettyPrint
+        case Failure(t) => sended ! EventResponse.alreadyReport.toJson.prettyPrint
+      }
+    case FinishEvent(id, user) =>
+      val sended = sender()
+      eventService.finishEvent(id, user).onComplete {
         case Success(result) => sended ! EventResponse.responseSuccess(Some(UserReport(user.id.get,id))).toJson.prettyPrint
         case Failure(t) => sended ! EventResponse.alreadyReport.toJson.prettyPrint
       }
@@ -129,6 +188,11 @@ class EventsServiceFetcher(eventsFuture: Future[Seq[MapEvent]]) {
   def fetch(): Future[Seq[MapEventAdapter]] = {
     eventsFuture.flatMap((f:Seq[MapEvent]) => {
       fetchCategory(f)
+    })
+  }
+  def fetchOne(f: Future[MapEvent]): Future[MapEventAdapter] = {
+    f.flatMap((f:MapEvent) => {
+      fetchCategory(Seq(f)).map((f:Seq[MapEventAdapter]) => f.head)
     })
   }
   private def fetchCategory(events: Seq[MapEvent]): Future[Seq[MapEventAdapter]] = {
@@ -147,6 +211,7 @@ class EventsServiceFetcher(eventsFuture: Future[Seq[MapEvent]]) {
           mapEvent.maxPeople,
           mapEvent.reports,
           mapEvent.description,
+          mapEvent.result,
           mapEvent.isEnded,
           mapEvent.userId,
           mapEvent.id

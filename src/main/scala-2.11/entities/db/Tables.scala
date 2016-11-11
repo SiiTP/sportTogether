@@ -26,6 +26,7 @@ case class MapEvent(
                      maxPeople: Int = 0,
                      reports: Option[Int] = None,
                      description: Option[String] = None,
+                     result: Option[String] = None,
                      isEnded: Boolean = false,
                      userId: Option[Int] = None,
                      id: Option[Int] = None
@@ -37,14 +38,20 @@ case class MapEventAdapter(
                             latitude: Double,
                             longtitude: Double,
                             date: Timestamp,
-                            nowPeople: Int = 0,
+                            nowPeople: Option[Int] = None,
                             maxPeople: Int = 0,
                             reports: Option[Int] = None,
                             description: Option[String] = None,
+                            result: Option[String] = None,
                             isEnded: Boolean = false,
                             userId: Option[Int] = None,
                             id: Option[Int] = None
-                          )
+                          ) {
+  def toMapEvent : MapEvent = {
+    MapEvent(name,category.id.get, latitude, longtitude, date, maxPeople, reports, description, result, isEnded, userId, id)
+  }
+}
+case class MapEventResultAdapter(id: Int, result: Option[String])
 
 case class User(clientId: String, role: Int, id: Option[Int] = None)
 case class UserReport(userId: Int, eventId: Int)
@@ -58,9 +65,10 @@ object EntitiesJsonProtocol extends DefaultJsonProtocol {
 
   implicit val userFormat = jsonFormat3(User)
   implicit val eventUsersFormat = jsonFormat3(UserJoinEvent)
-  implicit val mapEventFormat = jsonFormat11(MapEvent)
+  implicit val mapEventFormat = jsonFormat12(MapEvent)
+  implicit val mapEventResultAdapterFormat = jsonFormat2(MapEventResultAdapter)
   implicit val mapCategoryFormat = jsonFormat2(MapCategory)
-  implicit val mapEventAdapterFormat = jsonFormat12(MapEventAdapter)
+  implicit val mapEventAdapterFormat = jsonFormat13(MapEventAdapter)
   implicit val userReportFormat = jsonFormat2(UserReport)
 }
 
@@ -95,6 +103,7 @@ class MapEvents(tag: Tag) extends Table[MapEvent](tag, "events") {
   def id = column[Int]("id", O.PrimaryKey,O.AutoInc)
   def name = column[String]("name")
   def description = column[Option[String]]("description")
+  def result = column[Option[String]]("result")
   def catId = column[Int]("cat_id")
   def userId = column[Int]("user_id")
   def maxPeople = column[Int]("people")
@@ -105,7 +114,7 @@ class MapEvents(tag: Tag) extends Table[MapEvent](tag, "events") {
   def longtitude = column[Double]("longtitude")
   def mapCategory = foreignKey("cat_fk", catId, Tables.categories)(_.id)
   def mapUser = foreignKey("user_fk", userId, Tables.users)(_.id)
-  def * = (name, catId, latitude, longtitude, date,  maxPeople, report.?, description, isEnded, userId.?, id.?) <> (MapEvent.tupled,MapEvent.unapply)
+  def * = (name, catId, latitude, longtitude, date,  maxPeople, report.?, description, result, isEnded, userId.?, id.?) <> (MapEvent.tupled,MapEvent.unapply)
 }
 
 class Users(tag:Tag) extends Table[User](tag,"user"){

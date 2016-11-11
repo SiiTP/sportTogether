@@ -44,11 +44,11 @@ object App extends MyResponse {
 
     val joinService = system.actorOf(Props(classOf[JoinEventServiceActor], fcmService),"joinService")
     // create and start our service actor
-    val eventService = new EventService()
-    val eventServiceActor = system.actorOf(Props(classOf[EventServiceActor],eventService, reminderServiceActor),"eventService")
-
     val categoryService = new CategoryService()
     val categoryServiceActor = system.actorOf(Props(classOf[CategoryServiceActor],categoryService),"categoryService")
+
+    val eventService = new EventService()
+    val eventServiceActor = system.actorOf(Props(classOf[EventServiceActor],eventService, reminderServiceActor, categoryService),"eventService")
 
     val accountService = new AccountService()
     val accountServiceActor = system.actorOf(Props(classOf[AccountServiceActor], accountService), "accountService")

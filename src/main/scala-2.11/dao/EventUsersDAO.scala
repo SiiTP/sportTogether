@@ -52,6 +52,7 @@ class EventUsersDAO extends DatabaseDAO[UserJoinEvent, Int]{
       mapEvent.maxPeople,
       mapEvent.reports,
       mapEvent.description,
+      mapEvent.result,
       mapEvent.isEnded,
       mapEvent.userId,
       mapEvent.id

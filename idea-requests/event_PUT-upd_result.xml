@@ -2,9 +2,9 @@
   <option name="biscuits">
     <list />
   </option>
-  <option name="httpMethod" value="POST" />
+  <option name="httpMethod" value="PUT" />
   <option name="urlBase" value="http://localhost:8080" />
-  <option name="urlPath" value="/event" />
+  <option name="urlPath" value="/event/result" />
   <option name="headers">
     <list>
       <KeyValuePair>
@@ -36,6 +36,6 @@
   <option name="haveTextToSend" value="true" />
   <option name="haveFileToSend" value="false" />
   <option name="isFileUpload" value="false" />
-  <option name="textToSend" value="{&quot;name&quot;:&quot;testing3&quot;, &quot;description&quot;: &quot;descr&quot;, &quot;category&quot;:{&quot;id&quot;:2, &quot;name&quot;: &quot;categ&quot;},&quot;longtitude&quot;:53,&quot;latitude&quot;:51, &quot;date&quot;:1495617650064,&quot;maxPeople&quot;:5, &quot;isEnded&quot;: false} " />
+  <option name="textToSend" value="{&quot;id&quot;:1,&quot;result&quot;:&quot;azaza&quot;}" />
   <option name="filesToSend" value="" />
 </RestClientRequest>

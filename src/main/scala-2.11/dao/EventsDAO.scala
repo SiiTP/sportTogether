@@ -19,8 +19,9 @@ import scala.util.{Failure, Success}
   */
 class EventsDAO extends DatabaseDAO[MapEvent,Int] {
   private val table = Tables.events
-  private val reportsTable = Tables.userReports
 
+
+  private val reportsTable = Tables.userReports
   override def create(r: MapEvent): Future[MapEvent] = {
     val c = r.copy(reports = Some(0))
     val insert = (table returning table.map(_.id)).into((item, id) => item.copy(id = Some(id)))
@@ -29,14 +30,19 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
 
   override def update(r: MapEvent): Future[Int] = {
     //    val query = table.filter(_.id === r.id)
-    val query = for {c <- table if c.id === r.id} yield (c.date, c.description, c.latitude, c.longtitude, c.isEnded, c.catId, c.userId, c.name)
-    val action = query.update((r.date, r.description, r.latitude, r.longtitude, r.isEnded, r.categoryId, r.userId.get, r.name))
+    val query = for {c <- table if c.id === r.id} yield (c.date, c.description, c.result, c.latitude, c.longtitude, c.isEnded, c.catId, c.userId, c.name)
+    val action = query.update((r.date, r.description, r.result, r.latitude, r.longtitude, r.isEnded, r.categoryId, r.userId.get, r.name))
     execute(action)
   }
 
   override def get(eventId: Int): Future[MapEvent] = execute(table.filter(_.id === eventId).result.head)
 
   override def delete(r: MapEvent): Future[Int] = execute(table.filter(_.id === r.id).delete)
+
+  def endEvent(id: Int, userId: Int) = {
+    val query = for {c <- table if c.userId === userId && c.id === id} yield c.isEnded
+    execute(query.update(true))
+  }
 
   def reportEvent(id: Int, user: User) = {
 
@@ -58,8 +64,26 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
     execute(newQuery)
   }
 
-  def getCountUsersInEvent(idEvent: Int) = {
-    println("\nin get count users")
+  def allEventsWithPeople(): Future[Seq[MapEventAdapter]] = {
+    val result: Future[Seq[MapEvent]] = execute(table.sortBy(_.report).result)
+    result.map(seq => seq.map(mapEvent => MapEventAdapter(
+      mapEvent.name,
+      MapCategory("",Some(mapEvent.categoryId)),
+      mapEvent.latitude,
+      mapEvent.longtitude,
+      mapEvent.date,
+      getCountUsersInEvent(mapEvent.id.getOrElse(0)),
+      mapEvent.maxPeople,
+      mapEvent.reports,
+      mapEvent.description,
+      mapEvent.result,
+      mapEvent.isEnded,
+      mapEvent.userId,
+      mapEvent.id
+    )))
+  }
+
+  def getCountUsersInEvent(idEvent: Int): Some[Int] = {
     val countFuture: Future[Int] = execute(Tables.eventUsers.filter(_.eventId === idEvent).countDistinct.result)
     val countSuccessFuture = countFuture.recoverWith {
       case e: Throwable =>
@@ -68,7 +92,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
     }
     val count: Int = Await.result(countSuccessFuture, Duration(2, duration.SECONDS))
     println("count of event " + idEvent + " : " + count)
-    count
+    Some(count)
   }
 
 
@@ -83,7 +107,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
   }
 }
 object EventsDAO {
-  def mapResult(r: PositionedResult): MapEvent = MapEvent(r.nextString, r.nextInt, r.nextDouble, r.nextDouble, r.nextTimestamp, r.nextInt, r.nextIntOption, r.nextStringOption, r.nextBoolean, r.nextIntOption, r.nextIntOption)
+  def mapResult(r: PositionedResult): MapEvent = MapEvent(r.nextString, r.nextInt, r.nextDouble, r.nextDouble, r.nextTimestamp, r.nextInt, r.nextIntOption, r.nextStringOption, r.nextStringOption, r.nextBoolean, r.nextIntOption, r.nextIntOption)
 }
 class DistanceQuery(val distance: Double, val longtitude: Double, val latitude: Double) {
   private def longtitudeBetweenTuple = (longtitude - longtitudeDelta,longtitude + longtitudeDelta)
