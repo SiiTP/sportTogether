@@ -38,7 +38,7 @@ class EventService {
     //TODO check user id = id creator
     getEvent(event.id).flatMap {
         mapEvent => {
-          val updatedEvent = mapEvent.copy(result = event.result)
+          val updatedEvent = mapEvent.copy(result = event.result, isEnded = true)
           logger.info("updating event : " + updatedEvent)
           eventsDAO.update(updatedEvent)
         }
