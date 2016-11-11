@@ -1,7 +1,7 @@
 import AssemblyKeys._  // put this at the top of the file
 name := "sportTogether"
 
-version := "1.2.2"
+version := "1.2.3"
 scalaVersion := "2.11.8"
 
 assemblySettings

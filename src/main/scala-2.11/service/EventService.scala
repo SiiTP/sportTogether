@@ -1,8 +1,9 @@
 package service
 
-import akka.actor.{ActorRef, Actor}
+import akka.actor.{Actor, ActorRef}
 import akka.actor.Actor.Receive
 import akka.pattern.AskableActorRef
+import akka.util.Timeout
 import com.typesafe.scalalogging.Logger
 import dao.{CategoryDAO, EventsDAO}
 import dao.filters.{CategoryFilters, EventFilters, ParametersFiltration}
@@ -16,6 +17,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 import response.MyResponse._
 import entities.db.EntitiesJsonProtocol._
+import spray.json.{JsNumber, JsObject, JsString}
 
 import scala.concurrent.duration._
 /**
@@ -84,7 +86,11 @@ object EventService {
   case class UpdateEventResult(event: MapEventResultAdapter, user: User)
 
 }
-class EventServiceActor(eventService: EventService, remingderServiceActor: ActorRef, categoyService: CategoryService) extends Actor {
+class EventServiceActor(eventService: EventService,
+                        remingderServiceActor: ActorRef,
+                        categoyService: CategoryService,
+                        joinEventService: AskableActorRef) extends Actor {
+  implicit lazy val timeouts = Timeout(10.seconds)
   val logger = Logger("webApp")
 
 
@@ -174,9 +180,24 @@ class EventServiceActor(eventService: EventService, remingderServiceActor: Actor
     case FinishEvent(id, user) =>
       val sended = sender()
       eventService.finishEvent(id, user).onComplete {
-        case Success(result) => sended ! EventResponse.responseSuccess(Some(UserReport(user.id.get,id))).toJson.prettyPrint
-        case Failure(t) => sended ! EventResponse.alreadyReport.toJson.prettyPrint
+        case Success(result) =>
+          sended ! EventResponse.responseSuccess(Some(UserReport(user.id.get,id))).toJson.prettyPrint
+          sendNotifyToEventUsers(id, user)
+        case Failure(t) =>
+          logger.info("join event failure : " + t.getMessage)
+          sended ! EventResponse.alreadyReport.toJson.prettyPrint
       }
+  }
+
+  private def sendNotifyToEventUsers(eId: Int, user: User) = {
+    (joinEventService ? JoinEventService.GetTokens(eId)).onSuccess {
+      case tokens: Seq[UserJoinEvent] =>
+        logger.info("tokens : " + tokens)
+        val obj = new JsObject(Map(("name" -> JsNumber(user.id.get)), ("clientId" -> JsString(user.clientId)) ))
+
+        remingderServiceActor ! FcmService.SendMessage(tokens.map(_.deviceToken).seq, obj)
+      case _ => println("other!")
+    }
   }
 }
 

@@ -6,7 +6,7 @@ import com.typesafe.scalalogging.Logger
 import dao.{EventUsersDAO, EventsDAO}
 import entities.db.{MapEvent, MapEventAdapter, User, UserJoinEvent}
 import response.{EventResponse, JoinServiceResponse, MyResponse}
-import service.JoinEventService.{AddUserToEvent, GetEventsOfUserJoined}
+import service.JoinEventService.{AddUserToEvent, GetEventsOfUserJoined, GetTokens}
 import entities.db.EntitiesJsonProtocol._
 import spray.json.{JsNumber, JsObject, JsString}
 
@@ -44,7 +44,7 @@ class JoinEventService {
     eventUsersDAO.isAlreadyJoined(UserJoinEvent(user.id.get, null, eid))
   }
   def leaveEvent(user: User, event: MapEvent) = ???
-  def getTokens(eId: Int) = {
+  def getTokens(eId: Int): Future[Seq[UserJoinEvent]] = {
     eventUsersDAO.getById(eId)
   }
   def update(event: MapEvent) = {
@@ -63,6 +63,8 @@ class JoinEventService {
 object JoinEventService {
   case class AddUserToEvent(eventId: Int, user: User, token: String)
   case class GetEventsOfUserJoined(user: User)
+  case class GetTokens(eId: Int)
+
 }
 
 /**
@@ -108,6 +110,13 @@ class JoinEventServiceActor(_fcmService: ActorRef) extends Actor {
         case Failure(e) =>
           e.printStackTrace()
           sended ! JoinServiceResponse.unexpectedError.toJson.prettyPrint
+      }
+
+    case GetTokens(eId) =>
+      val sended = sender()
+      service.getTokens(eId).onComplete {
+        case Success(result) => sended ! result
+        case Failure(e) => e.printStackTrace()
       }
 
   }

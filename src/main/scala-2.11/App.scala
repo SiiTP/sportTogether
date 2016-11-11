@@ -48,7 +48,7 @@ object App extends MyResponse {
     val categoryServiceActor = system.actorOf(Props(classOf[CategoryServiceActor],categoryService),"categoryService")
 
     val eventService = new EventService()
-    val eventServiceActor = system.actorOf(Props(classOf[EventServiceActor],eventService, reminderServiceActor, categoryService),"eventService")
+    val eventServiceActor = system.actorOf(Props(classOf[EventServiceActor],eventService, reminderServiceActor, categoryService, joinService),"eventService")
 
     val accountService = new AccountService()
     val accountServiceActor = system.actorOf(Props(classOf[AccountServiceActor], accountService), "accountService")
