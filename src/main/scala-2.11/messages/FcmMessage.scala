@@ -11,6 +11,7 @@ trait FcmMessage {
 object FcmMessage {
   val CANCELLED = 0
   val FINISHED = 1
+  val RESULT = 2
 }
 case class FcmTextMessage(mesage: String, _title: String,_messageType: Int) extends FcmMessage {
   override def title = _title
