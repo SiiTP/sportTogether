@@ -81,9 +81,8 @@ class SenderHelper(sender: ActorRef) {
     }
   }
 }
-class JoinEventServiceActor(_fcmService: ActorRef) extends Actor {
+class JoinEventServiceActor(service: JoinEventService) extends Actor {
   private val logger = Logger("webApp")
-  private val service = new JoinEventService()
   override def receive: Receive = {
     case AddUserToEvent(ev, user, token) =>
       val sended = new SenderHelper(sender())
@@ -94,11 +93,11 @@ class JoinEventServiceActor(_fcmService: ActorRef) extends Actor {
         .flatMap(addChain(_)(userJoinEvent,sended)).onComplete {
         case Success(res) => res match {
           case item: Some[UserJoinEvent] =>
-            sendNotifyToEventUsers(ev,user)
             sended.answer(JoinServiceResponse.responseSuccess(item).toJson.prettyPrint)
           case None =>
         }
         case Failure(t) =>
+          t.printStackTrace()
           sended.answer(JoinServiceResponse.unexpectedError.toJson.prettyPrint)
       }
 
@@ -119,14 +118,6 @@ class JoinEventServiceActor(_fcmService: ActorRef) extends Actor {
         case Failure(e) => e.printStackTrace()
       }
 
-  }
-  private def sendNotifyToEventUsers(eId: Int, user: User) = {
-    service.getTokens(eId).onSuccess {
-      case tokens =>
-        val obj = new JsObject(Map(("name" -> JsNumber(user.id.get)), ("clientId" -> JsString(user.clientId)) ))
-
-        _fcmService ! FcmService.SendMessage(tokens.map(_.deviceToken).seq, obj)
-    }
   }
   private def isFullChain(result: Boolean)(userJoinEvent: UserJoinEvent, sender: SenderHelper): Future[Boolean] = {
     logger.debug(s"is joined user? - $result")

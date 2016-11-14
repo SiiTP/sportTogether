@@ -8,6 +8,7 @@ import com.typesafe.scalalogging.Logger
 import dao.{CategoryDAO, EventsDAO}
 import dao.filters.{CategoryFilters, EventFilters, ParametersFiltration}
 import entities.db._
+import messages.{FcmMessage, FcmTextMessage}
 import response.{CategoryResponse, EventResponse}
 import service.EventService._
 
@@ -89,7 +90,7 @@ object EventService {
 class EventServiceActor(eventService: EventService,
                         remingderServiceActor: ActorRef,
                         categoyService: CategoryService,
-                        joinEventService: AskableActorRef) extends Actor {
+                        messageServiceActor: ActorRef) extends Actor {
   implicit lazy val timeouts = Timeout(10.seconds)
   val logger = Logger("webApp")
 
@@ -109,7 +110,7 @@ class EventServiceActor(eventService: EventService,
               eventService.addSimpleEvent(event.copy(category = category).toMapEvent,user)
             })
           }
-          new EventsServiceFetcher(null).fetchOne(response).onComplete {
+          new EventsServiceFetcher().fetchOne(response).onComplete {
             case Success(result) =>
               sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
               remingderServiceActor ! ReminderService.Add(result.toMapEvent)
@@ -120,7 +121,7 @@ class EventServiceActor(eventService: EventService,
       }
     case GetEvents(filters) =>
       val sended = sender()
-      new EventsServiceFetcher(eventService.getEventsAround(filters)).fetch().onComplete {
+      new EventsServiceFetcher().fetch(eventService.getEventsAround(filters)).onComplete {
         case Success(result) =>
           logger.info(s"success when get events : " + result)
           sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
@@ -130,19 +131,19 @@ class EventServiceActor(eventService: EventService,
       }
     case GetUserEvents(id) =>
       val sended = sender()
-      new EventsServiceFetcher(eventService.getUserEvents(id)).fetch().onSuccess {
+      new EventsServiceFetcher().fetch(eventService.getUserEvents(id)).onSuccess {
         case eventsSeq => sended ! EventResponse.responseSuccess(Some(eventsSeq)).toJson.prettyPrint
       }
     case GetEvent(id) =>
       val sended = sender()
-      val eventFuture = eventService.getEvent(id).map(Seq(_))
-      new EventsServiceFetcher(eventFuture).fetch().onComplete {
+      val eventFuture = eventService.getEvent(id)
+      new EventsServiceFetcher().fetchOne(eventFuture).onComplete {
         case Success(event) => sended ! EventResponse.responseSuccess(Some(event)).toJson.prettyPrint
         case Failure(t) => sended ! EventResponse.notFoundError.toJson.prettyPrint
       }
     case GetEventsByDistance(distance, longtitude, latitude, filters) =>
       val sended = sender()
-      new EventsServiceFetcher(eventService.getEventsInDistance(distance, longtitude, latitude, filters)).fetch().onComplete {
+      new EventsServiceFetcher().fetch(eventService.getEventsInDistance(distance, longtitude, latitude, filters)).onComplete {
         case Success(events) => sended ! EventResponse.responseSuccess(Some(events)).toJson.prettyPrint
         case Failure(t) => sended ! EventResponse.unexpectedError.toJson.prettyPrint
       }
@@ -175,38 +176,40 @@ class EventServiceActor(eventService: EventService,
       val sended = sender()
       eventService.reportEvent(id, user).onComplete {
         case Success(result) => sended ! EventResponse.responseSuccess(Some(UserReport(user.id.get,id))).toJson.prettyPrint
-        case Failure(t) => sended ! EventResponse.alreadyReport.toJson.prettyPrint
+        case Failure(t) =>
+          logger.debug("exception " + t.toString)
+          sended ! EventResponse.alreadyReport.toJson.prettyPrint
       }
     case FinishEvent(id, user) =>
       val sended = sender()
       eventService.finishEvent(id, user).onComplete {
         case Success(result) =>
           sended ! EventResponse.responseSuccess(Some(UserReport(user.id.get,id))).toJson.prettyPrint
-          sendNotifyToEventUsers(id, user)
+          messageServiceActor ! MessageService.SendEventsTextMessage(id,FcmTextMessage("Событие отменено","Отмена события", FcmMessage.CANCELLED))
         case Failure(t) =>
           logger.info("join event failure : " + t.getMessage)
           sended ! EventResponse.alreadyReport.toJson.prettyPrint
       }
   }
 
-  private def sendNotifyToEventUsers(eId: Int, user: User) = {
-    (joinEventService ? JoinEventService.GetTokens(eId)).onSuccess {
-      case tokens: Seq[UserJoinEvent] =>
-        logger.info("tokens : " + tokens)
-        val obj = new JsObject(Map(("name" -> JsNumber(user.id.get)), ("clientId" -> JsString(user.clientId)) ))
-
-        remingderServiceActor ! FcmService.SendMessage(tokens.map(_.deviceToken).seq, obj)
-      case _ => println("other!")
-    }
-  }
+//  private def sendNotifyToEventUsers(eId: Int, user: User) = {
+//    (joinEventService ? JoinEventService.GetTokens(eId)).onSuccess {
+//      case tokens: Seq[UserJoinEvent] =>
+//        logger.info("tokens : " + tokens)
+//        val obj = new JsObject(Map(("name" -> JsNumber(user.id.get)), ("message" -> JsString("Событие отменено!")) ))
+//
+//        remingderServiceActor ! FcmService.SendMessage(tokens.map(_.deviceToken).seq, obj)
+//      case _ => println("other!")
+//    }
+//  }
 }
 
 //TODO может сделать объектом а методы статическими, чтобы использовать везде
-class EventsServiceFetcher(eventsFuture: Future[Seq[MapEvent]]) {
+class EventsServiceFetcher() {
   val categoryDAO = new CategoryDAO()
   val eventsDAO = new EventsDAO()
   val logger = Logger("webApp")
-  def fetch(): Future[Seq[MapEventAdapter]] = {
+  def fetch(eventsFuture: Future[Seq[MapEvent]]): Future[Seq[MapEventAdapter]] = {
     eventsFuture.flatMap((f:Seq[MapEvent]) => {
       fetchCategory(f)
     })
