@@ -1,11 +1,15 @@
 package dao
 
+
 import com.typesafe.scalalogging.Logger
 import entities.db._
 import slick.driver.MySQLDriver.api._
 
-import scala.concurrent.Future
+import scala.concurrent
+import scala.concurrent.{Await, Future, duration}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.Duration
+import scala.language.postfixOps
 /**
   * Created by ivan on 15.10.16.
   */
@@ -13,7 +17,6 @@ class EventUsersDAO extends DatabaseDAO[UserJoinEvent, Int]{
 
   private val table = Tables.eventUsers
   private val tableEvent = Tables.events
-  private val eventsDAO = new EventsDAO()
   private val logger = Logger("webApp")
 
   override def create(r: UserJoinEvent): Future[UserJoinEvent] = {
@@ -36,27 +39,20 @@ class EventUsersDAO extends DatabaseDAO[UserJoinEvent, Int]{
     execute(query.result)
   }
 
-  def getEventsOfUserJoined(user: User): Future[Seq[MapEventAdapter]] = {
+  def isUserJoined(idUser: Option[Int], idEvent: Option[Int]): Future[Boolean] = {
+    if (idUser.isEmpty && idEvent.isEmpty) {
+      return Future.successful(false)
+    }
+    val query = table.filter(row => row.userId === idUser && row.eventId === idEvent).exists
+    execute(query.result)
+  }
+
+  def getEventsOfUserJoined(user: User): Future[Seq[MapEvent]] = {
     val idUser = user.id.getOrElse(0)
     val seq = for {
       (e, rel) <- tableEvent join table on (_.id === _.eventId ) if rel.userId === idUser
     } yield e
-    val result: Future[Seq[MapEvent]] = execute(seq.result)
-    result.map(seq => seq.map(mapEvent => MapEventAdapter(
-      mapEvent.name,
-      MapCategory("", Some(mapEvent.categoryId)),
-      mapEvent.latitude,
-      mapEvent.longtitude,
-      mapEvent.date,
-      eventsDAO.getCountUsersInEvent(mapEvent.id.getOrElse(0)),
-      mapEvent.maxPeople,
-      mapEvent.reports,
-      mapEvent.description,
-      mapEvent.result,
-      mapEvent.isEnded,
-      mapEvent.userId,
-      mapEvent.id
-    )))
+    execute(seq.result)
   }
 
   override def get(r: Int): Future[UserJoinEvent] = ???

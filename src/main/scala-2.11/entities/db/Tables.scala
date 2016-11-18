@@ -44,6 +44,8 @@ case class MapEventAdapter(
                             description: Option[String] = None,
                             result: Option[String] = None,
                             isEnded: Boolean = false,
+                            isJoined: Boolean = false,
+                            isReported: Boolean = false,
                             userId: Option[Int] = None,
                             id: Option[Int] = None
                           ) {
@@ -68,7 +70,7 @@ object EntitiesJsonProtocol extends DefaultJsonProtocol {
   implicit val mapEventFormat = jsonFormat12(MapEvent)
   implicit val mapEventResultAdapterFormat = jsonFormat2(MapEventResultAdapter)
   implicit val mapCategoryFormat = jsonFormat2(MapCategory)
-  implicit val mapEventAdapterFormat = jsonFormat13(MapEventAdapter)
+  implicit val mapEventAdapterFormat = jsonFormat15(MapEventAdapter)
   implicit val userReportFormat = jsonFormat2(UserReport)
 }
 

@@ -1,16 +1,14 @@
 package service
 
 import akka.actor.{Actor, ActorRef}
-import akka.actor.Actor.Receive
 import com.typesafe.scalalogging.Logger
 import dao.{EventUsersDAO, EventsDAO}
 import entities.db.{MapEvent, MapEventAdapter, User, UserJoinEvent}
-import response.{EventResponse, JoinServiceResponse, MyResponse}
+import response.JoinServiceResponse
 import service.JoinEventService.{AddUserToEvent, GetEventsOfUserJoined, GetTokens}
 import entities.db.EntitiesJsonProtocol._
 import spray.json.{JsNumber, JsObject, JsString}
 
-import scala.collection.mutable
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -29,14 +27,7 @@ class JoinEventService {
   }
 
   def getEventsOfUserJoined(user: User): Future[Seq[MapEventAdapter]] = {
-
-    eventUsersDAO.getEventsOfUserJoined(user).flatMap {
-      case userEvents => Future.successful(userEvents)
-    } recoverWith {
-      case e: Throwable =>
-        logger.info(s"error of userEventsDAO : " + e.getMessage)
-        Future.successful(Seq.empty[MapEventAdapter])
-    }
+    EventService.toAdapterForm(eventUsersDAO.getEventsOfUserJoined(user))
   }
 
   def isExist(event: MapEvent) = ???
@@ -94,7 +85,7 @@ class JoinEventServiceActor(_fcmService: ActorRef) extends Actor {
         .flatMap(addChain(_)(userJoinEvent,sended)).onComplete {
         case Success(res) => res match {
           case item: Some[UserJoinEvent] =>
-            sendNotifyToEventUsers(ev,user)
+//            sendNotifyToEventUsers(ev,user)
             sended.answer(JoinServiceResponse.responseSuccess(item).toJson.prettyPrint)
           case None =>
         }

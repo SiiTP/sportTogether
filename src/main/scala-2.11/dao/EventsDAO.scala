@@ -20,7 +20,6 @@ import scala.util.{Failure, Success}
 class EventsDAO extends DatabaseDAO[MapEvent,Int] {
   private val table = Tables.events
 
-
   private val reportsTable = Tables.userReports
   override def create(r: MapEvent): Future[MapEvent] = {
     val c = r.copy(reports = Some(0))
@@ -44,7 +43,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
     execute(table.filter(_.id === id).delete)
   }
 
-  def reportEvent(id: Int, user: User) = {
+  def reportEvent(id: Int, user: User): Future[Int] = {
 
     execute(reportsTable += UserReport(user.id.get, id)).flatMap(action => {
       get(id)
@@ -64,38 +63,58 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
     execute(newQuery)
   }
 
-  def allEventsWithPeople(): Future[Seq[MapEventAdapter]] = {
-    val result: Future[Seq[MapEvent]] = execute(table.sortBy(_.report).result)
-    result.map(seq => seq.map(mapEvent => MapEventAdapter(
-      mapEvent.name,
-      MapCategory("",Some(mapEvent.categoryId)),
-      mapEvent.latitude,
-      mapEvent.longtitude,
-      mapEvent.date,
-      getCountUsersInEvent(mapEvent.id.getOrElse(0)),
-      mapEvent.maxPeople,
-      mapEvent.reports,
-      mapEvent.description,
-      mapEvent.result,
-      mapEvent.isEnded,
-      mapEvent.userId,
-      mapEvent.id
-    )))
-  }
+//  def allEventsWithPeople(): Future[Seq[MapEventAdapter]] = {
+//    val result = execute(table.sortBy(_.report).result)
+//
+//    result.flatMap {
+//      seq => Future.sequence(
+//        seq.map(mapEvent => {
+//          val isJoinedFuture = eventUsersDAO.isUserJoined(mapEvent.userId, mapEvent.id)
+//          val isReportedFuture = isEventReported(mapEvent.userId, mapEvent.id)
+//          for {
+//            isJoined <- isJoinedFuture
+//            isReported <- isReportedFuture
+//          } yield MapEventAdapter(
+//            mapEvent.name,
+//            MapCategory("", Some(mapEvent.categoryId)),
+//            mapEvent.latitude,
+//            mapEvent.longtitude,
+//            mapEvent.date,
+//            getCountUsersInEvent(mapEvent.id.getOrElse(0)),
+//            mapEvent.maxPeople,
+//            mapEvent.reports,
+//            mapEvent.description,
+//            mapEvent.result,
+//            mapEvent.isEnded,
+//            isJoined,
+//            isReported,
+//            mapEvent.userId,
+//            mapEvent.id
+//          )
+//        })
+//      )
+//    }
+//  }
 
-  def getCountUsersInEvent(idEvent: Int): Some[Int] = {
+  def getCountUsersInEvent(idEvent: Option[Int]): Future[Int] = {
+    if (idEvent.isEmpty) {
+      Future.successful(0)
+    }
     val countFuture: Future[Int] = execute(Tables.eventUsers.filter(_.eventId === idEvent).countDistinct.result)
-    val countSuccessFuture = countFuture.recoverWith {
+    countFuture.recoverWith {
       case e: Throwable =>
         println(e.getMessage)
         Future.successful(0)
     }
-    val count: Int = Await.result(countSuccessFuture, Duration(2, duration.SECONDS))
-    println("count of event " + idEvent + " : " + count)
-    Some(count)
   }
 
-
+  def isEventReported(idUser: Option[Int], idEvent: Option[Int]): Future[Boolean] = {
+    if (idUser.isEmpty && idEvent.isEmpty) {
+      return Future.successful(false)
+    }
+    val query: Rep[Boolean] = reportsTable.filter(row => row.userId === idUser.get && row.eventId === idEvent.get).exists
+    execute(query.result)
+  }
 
   def getNearestEventsByDistance(distance: Double, longtitude: Double, latitude: Double, filters: EventFilters): Future[Seq[MapEvent]] = {
     implicit val getEventResult = GetResult(EventsDAO.mapResult)

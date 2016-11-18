@@ -26,7 +26,7 @@ import ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 
 class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: AskableActorRef,_categoryService: AskableActorRef, _fcmService: AskableActorRef, _joinEventService: AskableActorRef) extends Actor with RouteService {
-  implicit lazy val timeouts = Timeout(10.seconds)
+  implicit lazy val timeouts = Timeout(4.seconds)
   def actorRefFactory = context
   def accountServiceRef: AskableActorRef = _accountServiceRef
   def eventsServiceRef = _eventService
