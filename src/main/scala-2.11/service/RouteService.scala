@@ -232,9 +232,8 @@ trait RouteService extends HttpService {
             complete("hello world")
           } ~
             post {
-              onComplete(sendReportEvent(id, user)) {
-                logger.info(s"POST event/$id/report")
-                defaultResponse
+              onComplete(sendReportEvent(id, user)) { tryAny =>
+                defaultResponse(tryAny, s"POST event/$id/report")
               }
             }
         } ~
@@ -250,24 +249,21 @@ trait RouteService extends HttpService {
         } ~
         pathEnd {
           get {
-            onComplete(sendGetEvent(id)) {
-              logger.info(s"GET event/$id ")
-              defaultResponse
+            onComplete(sendGetEvent(id)) { tryAny =>
+                defaultResponse(tryAny, s"GET event/$id")
             }
           } ~
           put {
             entity(as[MapEvent]) { event =>
 
-              onComplete(sendUpdateEvents(event.copy(userId = user.id, id = Some(id)), user)) {
-                logger.info(s"PUT event/$id data:$event")
-                defaultResponse
+              onComplete(sendUpdateEvents(event.copy(userId = user.id, id = Some(id)), user)) { tryAny =>
+                defaultResponse(tryAny, s"PUT event/$id data:$event")
               }
             }
           } ~
           delete {
-            onComplete(sendFinishEvent(id, user))  {
-              logger.info(s"DELETE event/$id")
-              defaultResponse
+            onComplete(sendFinishEvent(id, user))  { tryAny =>
+              defaultResponse(tryAny, s"DELETE event/$id")
             }
           }
         }
@@ -300,9 +296,8 @@ trait RouteService extends HttpService {
     } ~
     pathPrefix("user") {
       get {
-        onComplete(sendGetUserEvents(user.id.get)) {
-          logger.info("GET event/user")
-          defaultResponse
+        onComplete(sendGetUserEvents(user.id.get)) { tryAny =>
+          defaultResponse(tryAny, "GET event/user")
         }
       }
     } ~
@@ -312,9 +307,8 @@ trait RouteService extends HttpService {
           parameter("latitude".as[Double], "longtitude".as[Double]) {
             (latitude, longtitude) =>
               get {
-                onComplete(sendGetEventsDistance(distance, latitude, longtitude, params)) {
-                  logger.info(s"GET event/distance/$distance Latittude $latitude and $longtitude")
-                  defaultResponse
+                onComplete(sendGetEventsDistance(distance, latitude, longtitude, params)) { tryAny =>
+                  defaultResponse(tryAny, s"GET event/distance/$distance Latittude $latitude and $longtitude")
                 }
               }
           }

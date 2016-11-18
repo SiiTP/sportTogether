@@ -85,6 +85,7 @@ object EventService {
   private val categoryDAO = new CategoryDAO()
 
   def toAdapterForm(futureSeq: Future[Seq[MapEvent]]): Future[Seq[MapEventAdapter]] = {
+    logger.info("in to adapter form")
     val futureAdapters = futureSeq.flatMap(seq => {
       Future.sequence(
         seq.map(mapEvent => {
