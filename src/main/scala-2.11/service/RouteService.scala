@@ -153,7 +153,6 @@ trait RouteService extends HttpService {
     logMsg match {
       case "" => println("empty log")
       case s => logger.info(s)
-      case _ =>
     }
     a match {
       case Success(result) =>

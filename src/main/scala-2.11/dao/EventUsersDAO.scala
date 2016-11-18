@@ -5,10 +5,8 @@ import com.typesafe.scalalogging.Logger
 import entities.db._
 import slick.driver.MySQLDriver.api._
 
-import scala.concurrent
-import scala.concurrent.{Await, Future, duration}
+import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.Duration
 import scala.language.postfixOps
 /**
   * Created by ivan on 15.10.16.

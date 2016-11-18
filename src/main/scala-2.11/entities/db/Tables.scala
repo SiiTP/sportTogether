@@ -89,7 +89,7 @@ class UserReports(tag: Tag) extends Table[UserReport](tag,"user_reports") {
   def userId = column[Int]("user_id")
   def eventId = column[Int]("event_id")
   def userFK = foreignKey("userFK",userId,Tables.users)(_.id)
-  def eventFK = foreignKey("eventFK",eventId,Tables.events)(_.id)
+  def eventFK = foreignKey("eventFK",eventId,Tables.events)(_.id, onDelete=ForeignKeyAction.Cascade)
   def uniqueIdxs = index("uniq_user_event",(userId,eventId),unique = true)
   def * = (userId, eventId) <> (UserReport.tupled, UserReport.unapply)
 }

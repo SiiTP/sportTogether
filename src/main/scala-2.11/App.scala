@@ -41,18 +41,19 @@ object App extends MyResponse {
     val reminderService = new ReminderService(fcmService)
     reminderService.start()
     val reminderServiceActor = system.actorOf(Props(classOf[ReminderServiceActor],reminderService),"reminderService")
-
-    val joinService = system.actorOf(Props(classOf[JoinEventServiceActor], fcmService),"joinService")
+    val joinService = new JoinEventService()
+    val joinServiceActor = system.actorOf(Props(classOf[JoinEventServiceActor], joinService),"joinService")
+    val messageServiceActor = system.actorOf(Props(classOf[MessageServiceActor], joinServiceActor, fcmService),"messageService")
     // create and start our service actor
     val categoryService = new CategoryService()
     val categoryServiceActor = system.actorOf(Props(classOf[CategoryServiceActor],categoryService),"categoryService")
 
     val eventService = new EventService()
-    val eventServiceActor = system.actorOf(Props(classOf[EventServiceActor],eventService, reminderServiceActor, categoryService, joinService),"eventService")
+    val eventServiceActor = system.actorOf(Props(classOf[EventServiceActor],eventService, reminderServiceActor, categoryService, messageServiceActor),"eventService")
 
     val accountService = new AccountService()
     val accountServiceActor = system.actorOf(Props(classOf[AccountServiceActor], accountService), "accountService")
-    val routeServiceActor = system.actorOf(Props(classOf[RouteServiceActor], accountServiceActor,eventServiceActor,categoryServiceActor, fcmService, joinService), "routeService")
+    val routeServiceActor = system.actorOf(Props(classOf[RouteServiceActor], accountServiceActor,eventServiceActor,categoryServiceActor, fcmService, joinServiceActor), "routeService")
 
 
     val future: Future[Any] = IO(Http) ? Http.Bind(routeServiceActor, interface = "localhost", port = port)

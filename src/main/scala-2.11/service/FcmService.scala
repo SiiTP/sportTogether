@@ -38,8 +38,9 @@ class FcmService {
     val pipeline = sendReceive
     var responses: mutable.ArraySeq[Future[HttpResponse]] = new mutable.ArraySeq[Future[HttpResponse]](0)
     tokens.foreach(item => {
-      val request = Post("https://fcm.googleapis.com/fcm/send",HttpEntity(MediaTypes.`application/json`,MessageTo(item, message).toJson.compactPrint)) ~> addHeader("Authorization",s"key=$apiKey")
-      //~> addHeader("Content-Type","application/json")
+      val request = Post("https://fcm.googleapis.com/fcm/send",HttpEntity(
+        MediaTypes.`application/json`,
+        MessageTo(item, message).toJson.compactPrint.getBytes("UTF-8"))) ~> addHeader("Authorization",s"key=$apiKey")
       logger.debug("sending fcm headers " + request.headers + "\nWith data: " + request.entity.data.asString)
       val response = pipeline {
         request
