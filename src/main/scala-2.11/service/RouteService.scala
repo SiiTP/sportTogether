@@ -88,7 +88,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
 
   override def sendUserJoinEvent(user: User, eventId: Int, token: String): Future[Any] = _joinEventService ? JoinEventService.AddUserToEvent(eventId, user, token)
   override def sendGetJoinedEvents(user: User) = _joinEventService ? JoinEventService.GetEventsOfUserJoined(user)
-
+  override def sendUserLeaveEvent(user: User, eventId: Int): Future[Any] = _joinEventService ? JoinEventService.LeaveEvent(eventId, user)
 
   override def testMessageSend(token: String): Future[Any] = _fcmService ? FcmService.SendMessage(Array(token),JsObject("hello" -> JsString("world"), "id" -> JsNumber(5), "bools" -> JsBoolean(true)))
 
@@ -145,6 +145,7 @@ trait RouteService extends HttpService {
   def sendUpdateEvents(event: MapEvent, user: User): Future[Any]
   def sendUpdateResult(event: MapEventResultAdapter, user: User): Future[Any]
   def sendUserJoinEvent(user: User, eventId: Int, token: String): Future[Any]
+  def sendUserLeaveEvent(user: User, eventId: Int): Future[Any]
 
   def getStringResponse(data: Any) = data.asInstanceOf[String]
 
@@ -243,6 +244,11 @@ trait RouteService extends HttpService {
                 onComplete(sendUserJoinEvent(user,id,token)) {
                   defaultResponse//"eip4vuQhWQU:APA91bEFEEZKOAUBoKwa3RsjU7oTcKTVbWdZbqZ5JB4d5vjJH7H8kFN3hKWKuOovhShpLVt6asIsiWVZdLZvsDHAraftWgltTNMixG7TmQwphH-vjQ6TVMC-QxZs6FZBM8tCJ7O2Qa8v"
                 }
+            }
+          } ~
+          delete {
+            onComplete(sendUserLeaveEvent(user, id)) {
+              defaultResponse
             }
           }
         } ~

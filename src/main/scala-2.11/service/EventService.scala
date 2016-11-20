@@ -1,6 +1,7 @@
 package service
 
 import akka.actor.{Actor, ActorRef}
+import akka.pattern.AskableActorRef
 import akka.util.Timeout
 import com.typesafe.scalalogging.Logger
 import dao.{CategoryDAO, EventUsersDAO, EventsDAO}
@@ -32,17 +33,10 @@ class EventService {
     }
   }
 
-  def updateResult(event: MapEventResultAdapter, user: User): Future[Int] = {
-    //TODO check user id = id creator
-    getEvent(event.id).flatMap {
-        mapEvent => {
-          val updatedEvent = mapEvent.copy(result = event.result, isEnded = true)
-          logger.info("updated event : " + updatedEvent)
-          eventsDAO.update(updatedEvent)
-        }
-    }.recoverWith {
-      case e: Throwable => Future.successful(0)
-    }
+  def updateResult(event: MapEventResultAdapter, mapEvent: MapEvent): Future[Int] = {
+    val updatedEvent = mapEvent.copy(result = event.result, isEnded = true)
+    logger.info("updated event : " + updatedEvent)
+    eventsDAO.update(updatedEvent)
   }
 
   def reportEvent(id: Int, user: User) = {
@@ -127,7 +121,8 @@ object EventService {
 class EventServiceActor(eventService: EventService,
                         remingderServiceActor: ActorRef,
                         categoyService: CategoryService,
-                        messageServiceActor: ActorRef) extends Actor {
+                        messageServiceActor: ActorRef,
+                        joinEventService: JoinEventService) extends Actor {
   implicit lazy val timeouts = Timeout(4.seconds)
 
 
@@ -146,6 +141,7 @@ class EventServiceActor(eventService: EventService,
               eventService.addSimpleEvent(event.copy(category = category).toMapEvent,user)
             })
           }
+
           new EventsServiceFetcher().fetchOne(response).onComplete {
             case Success(result) =>
               sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
@@ -200,12 +196,24 @@ class EventServiceActor(eventService: EventService,
       logger.debug("updating result " + event + " \nUSER " + user)
 
       val sended = sender()
-      eventService.updateResult(event, user).onComplete {
-        case Success(updatedEvent) if updatedEvent > 0 =>
-          sended ! EventResponse.responseSuccess[MapEvent](None).toJson.prettyPrint
-        case Success(updatedEvent) if updatedEvent == 0 =>
+      eventService.getEvent(event.id).onComplete {
+        case Success(mapEvent) =>
+          if (mapEvent.userId == user.id && !mapEvent.isEnded) {
+            eventService.updateResult(event, mapEvent).onComplete {
+              case Success(updatedEvent) if updatedEvent > 0 =>
+                sended ! EventResponse.responseSuccess[MapEvent](None).toJson.prettyPrint
+                messageServiceActor ! MessageService.SendEventsTextMessage(event.id,
+                  FcmTextMessage("Итог события", event.result.getOrElse(""), FcmMessage.RESULT))
+              case Success(updatedEvent) if updatedEvent == 0 =>
+                sended ! EventResponse.notFoundError.toJson.prettyPrint
+              case Failure(t) => sended ! EventResponse.unexpectedError.toJson.prettyPrint
+            }
+          } else {
+            sended ! EventResponse.alreadyPostedResult.toJson.prettyPrint
+          }
+        case Failure(t) =>
+          logger.debug("exception get event", t)
           sended ! EventResponse.notFoundError.toJson.prettyPrint
-        case Failure(t) => sended ! EventResponse.unexpectedError.toJson.prettyPrint
       }
 
     case ReportEvent(id, user) =>
@@ -213,31 +221,28 @@ class EventServiceActor(eventService: EventService,
       eventService.reportEvent(id, user).onComplete {
         case Success(result) => sended ! EventResponse.responseSuccess(Some(UserReport(user.id.get,id))).toJson.prettyPrint
         case Failure(t) =>
-          logger.debug("exception " + t.toString)
+          logger.debug("exception ", t)
           sended ! EventResponse.alreadyReport.toJson.prettyPrint
       }
     case FinishEvent(id, user) =>
       val sended = sender()
-      eventService.finishEvent(id, user).onComplete {
-        case Success(result) =>
-          sended ! EventResponse.responseSuccess(Some(UserReport(user.id.get,id))).toJson.prettyPrint
-          messageServiceActor ! MessageService.SendEventsTextMessage(id,FcmTextMessage("Событие отменено","Отмена события", FcmMessage.CANCELLED))
+      joinEventService.getTokens(id).onComplete {
+        case Success(tokens) =>
+          eventService.finishEvent(id, user).onComplete {
+            case Success(result) =>
+              sended ! EventResponse.responseSuccess(Some(UserReport(user.id.get,id))).toJson.prettyPrint
+              messageServiceActor ! MessageService.SendTokensTextMessage(tokens.map(_.deviceToken),FcmTextMessage("Событие отменено","Отмена события", FcmMessage.CANCELLED))
+            case Failure(t) =>
+              logger.info("join event failure : ", t)
+              sended ! EventResponse.alreadyReport.toJson.prettyPrint
+          }
         case Failure(t) =>
-          logger.info("join event failure : " + t.getMessage)
-          sended ! EventResponse.alreadyReport.toJson.prettyPrint
+          logger.debug("exception ", t)
+          sended ! EventResponse.unexpectedError(t.getMessage).toJson.prettyPrint
       }
+
   }
 
-//  private def sendNotifyToEventUsers(eId: Int, user: User) = {
-//    (joinEventService ? JoinEventService.GetTokens(eId)).onSuccess {
-//      case tokens: Seq[UserJoinEvent] =>
-//        logger.info("tokens : " + tokens)
-//        val obj = new JsObject(Map(("name" -> JsNumber(user.id.get)), ("message" -> JsString("Событие отменено!")) ))
-//
-//        remingderServiceActor ! FcmService.SendMessage(tokens.map(_.deviceToken).seq, obj)
-//      case _ => println("other!")
-//    }
-//  }
 }
 
 class EventsServiceFetcher() {

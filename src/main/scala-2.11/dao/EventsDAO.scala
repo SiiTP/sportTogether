@@ -40,7 +40,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
 
   def endEvent(id: Int, userId: Int) = {
 //    val query = for {c <- table if c.userId === userId && c.id === id} yield c
-    execute(table.filter(_.id === id).delete)
+    execute(table.filter(event => event.id === id && event.userId === userId).delete)
   }
 
   def reportEvent(id: Int, user: User): Future[Int] = {

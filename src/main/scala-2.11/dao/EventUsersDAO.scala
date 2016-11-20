@@ -12,11 +12,11 @@ import scala.language.postfixOps
   * Created by ivan on 15.10.16.
   */
 class EventUsersDAO extends DatabaseDAO[UserJoinEvent, Int]{
-
   private val table = Tables.eventUsers
+
+
   private val tableEvent = Tables.events
   private val logger = Logger("webApp")
-
   override def create(r: UserJoinEvent): Future[UserJoinEvent] = {
     execute(table += r).map(f => r)
   }
@@ -31,6 +31,10 @@ class EventUsersDAO extends DatabaseDAO[UserJoinEvent, Int]{
 
   override def delete(r: UserJoinEvent): Future[Int] = {
     execute(table.filter(_.eventId === r.eventId).delete)
+  }
+
+  def deleteFromEvent(eId: Int, userId: Int) = {
+    execute(table.filter(uie => uie.eventId === eId && uie.userId === userId).delete)
   }
   def isAlreadyJoined(r: UserJoinEvent) = {
     val query = table.filter(uie => uie.eventId === r.eventId && uie.userId === r.userId).exists

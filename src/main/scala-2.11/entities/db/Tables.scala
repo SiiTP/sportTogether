@@ -80,7 +80,7 @@ class UsersInEvents(tag: Tag) extends Table[UserJoinEvent](tag,"event_users") {
   def eventId = column[Int]("event_id")
   def deviceToken = column[String]("device_token")
   def userFK = foreignKey("user_UserInEvent_FK",userId,Tables.users)(_.id)
-  def eventFK = foreignKey("event_UserInEvent_FK",eventId,Tables.events)(_.id)
+  def eventFK = foreignKey("event_UserInEvent_FK",eventId,Tables.events)(_.id, onDelete=ForeignKeyAction.Cascade)
   def uniqueIdxs = index("uniq_user_in_event",(userId,eventId),unique = true)
   def * = (userId, deviceToken, eventId) <> (UserJoinEvent.tupled, UserJoinEvent.unapply)
 }

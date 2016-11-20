@@ -21,7 +21,8 @@ class DatabaseHelper private(){
 //    properties.load(new FileReader(configPath))
     properties.load(stream)
     properties.getProperty("db") match {
-      case "create" => recreate()
+      case "create" => create()
+      case "drop-create" => recreate()
       case _ => None
     }
 

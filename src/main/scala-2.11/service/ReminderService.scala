@@ -9,6 +9,7 @@ import akka.actor.Actor.Receive
 import akka.pattern.AskableActorRef
 import com.typesafe.scalalogging.Logger
 import entities.db.MapEvent
+import messages.{FcmMessage, FcmTextMessage}
 import service.ReminderService.Add
 import spray.json.{JsString, JsObject}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -49,9 +50,7 @@ class ReminderService(_fcmService: ActorRef) extends Thread{
               logger.debug("sendind to: " + res)
               _fcmService ! FcmService.SendMessage(
                 res.map(_.deviceToken),
-                JsObject(
-                  ("message",JsString(s"1 hour left for event id:${i._1} name:${i._3} descr:${i._2}"))
-                )
+                FcmTextMessage(s"Описание:${i._2.getOrElse("")}",s"Остался 1 час до события ${i._3}",FcmMessage.REMIND).toJsonObject
               )
           }
         }
