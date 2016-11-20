@@ -31,7 +31,7 @@ class DatabaseHelper private(){
     this.synchronized {
       if(!isCreated){
         Await.result(db.run(DBIO.seq(
-          (users.schema ++ events.schema ++ categories.schema ++ userReports.schema ++ eventUsers.schema).create
+          (users.schema ++ events.schema ++ categories.schema ++ userReports.schema ++ eventUsers.schema ++ tasks.schema).create
         )), Duration.Inf)
         println("DATABASE CREATED")
       }
@@ -50,7 +50,8 @@ class DatabaseHelper private(){
       userReports. delete,
       events     . delete,
       categories . delete,
-      users      . delete
+      users      . delete,
+      tasks      . delete
     )), Duration.Inf)
 
   def drop(): Unit ={
@@ -58,7 +59,7 @@ class DatabaseHelper private(){
       if(isCreated){
   //      Await.result(db.run(sqlu"""SET foreign_key_checks = 0 """),Duration.Inf)
         Await.result(db.run(DBIO.seq(
-          (users.schema ++ events.schema ++ categories.schema ++ userReports.schema).drop
+          (users.schema ++ events.schema ++ categories.schema ++ userReports.schema ++ tasks.schema).drop
         )), Duration.Inf)
   //      Await.result(db.run(sqlu"""SET foreign_key_checks = 1 """),Duration.Inf)
         println("DATABASE DROPPED")

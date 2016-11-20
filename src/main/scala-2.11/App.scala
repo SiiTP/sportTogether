@@ -49,11 +49,15 @@ object App extends MyResponse {
     val categoryService = new CategoryService()
     val categoryServiceActor = system.actorOf(Props(classOf[CategoryServiceActor],categoryService),"categoryService")
 
+    val taskService = new TaskService()
+    val taskServiceActor = system.actorOf(Props(classOf[TaskServiceActor], taskService), "taskService")
     val eventService = new EventService()
-    val eventServiceActor = system.actorOf(Props(classOf[EventServiceActor],eventService, reminderServiceActor, categoryService, messageServiceActor, joinService),"eventService")
+    val eventServiceActor = system.actorOf(Props(classOf[EventServiceActor],eventService, reminderServiceActor, categoryService, messageServiceActor, joinService, taskServiceActor),"eventService")
     val accountService = new AccountService()
     val accountServiceActor = system.actorOf(Props(classOf[AccountServiceActor], accountService), "accountService")
-    val routeServiceActor = system.actorOf(Props(classOf[RouteServiceActor], accountServiceActor,eventServiceActor,categoryServiceActor, fcmService, joinServiceActor), "routeService")
+    val routeServiceActor = system.actorOf(Props(classOf[RouteServiceActor],
+      accountServiceActor,eventServiceActor,categoryServiceActor,
+      fcmService, joinServiceActor, taskServiceActor), "routeService")
 
 
     val future: Future[Any] = IO(Http) ? Http.Bind(routeServiceActor, interface = "localhost", port = port)

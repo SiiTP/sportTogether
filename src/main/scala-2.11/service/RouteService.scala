@@ -25,7 +25,12 @@ import spray.httpx.SprayJsonSupport._
 import ExecutionContext.Implicits.global
 import scala.util.{Failure, Success, Try}
 
-class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: AskableActorRef,_categoryService: AskableActorRef, _fcmService: AskableActorRef, _joinEventService: AskableActorRef) extends Actor with RouteService {
+class RouteServiceActor(_accountServiceRef: AskableActorRef,
+                        _eventService: AskableActorRef,
+                        _categoryService: AskableActorRef,
+                        _fcmService: AskableActorRef,
+                        _joinEventService: AskableActorRef,
+                       _taskServiceActor: AskableActorRef) extends Actor with RouteService {
   implicit lazy val timeouts = Timeout(10.seconds)
   def actorRefFactory = context
   def accountServiceRef: AskableActorRef = _accountServiceRef
@@ -92,6 +97,8 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef, _eventService: Aska
 
   override def testMessageSend(token: String): Future[Any] = _fcmService ? FcmService.SendMessage(Array(token),JsObject("hello" -> JsString("world"), "id" -> JsNumber(5), "bools" -> JsBoolean(true)))
 
+  override def sendGetEventTasks(eventId: Int): Future[Any] = _taskServiceActor ? TaskService.GetEventTasks(eventId)
+  override def sendUpdateTask(task: EventTask, user: User): Future[Any] = _taskServiceActor ? TaskService.UpdateTasks(task, user)
 }
 
 object RouteServiceActor {
@@ -146,7 +153,8 @@ trait RouteService extends HttpService {
   def sendUpdateResult(event: MapEventResultAdapter, user: User): Future[Any]
   def sendUserJoinEvent(user: User, eventId: Int, token: String): Future[Any]
   def sendUserLeaveEvent(user: User, eventId: Int): Future[Any]
-
+  def sendGetEventTasks(eventId: Int): Future[Any]
+  def sendUpdateTask(task: EventTask, user: User): Future[Any]
   def getStringResponse(data: Any) = data.asInstanceOf[String]
 
   //т.к. везде одинаковые ответы(строки), то вынес все в одну функцию
@@ -320,7 +328,22 @@ trait RouteService extends HttpService {
       }
     } ~ complete(EventResponse.unexpectedPath.toJson.prettyPrint)
   }
-
+  def task(user: User) = pathPrefix("task") {
+    get {
+      parameter("eventId".as[Int]) { id =>
+        onComplete(sendGetEventTasks(id)) {
+          defaultResponse
+        }
+      }
+    } ~
+    put {
+      entity(as[EventTask]) { task =>
+        onComplete(sendUpdateTask(task, user)) { any =>
+          defaultResponse(any,s"PUT task with $task")
+        }
+      }
+    }
+  }
   def testMessageSend(token: String): Future[Any]
   val gcm = path("gcm") {
     get {
@@ -352,7 +375,8 @@ trait RouteService extends HttpService {
           case Some(u) =>
             logger.debug(s"USER: $u")
             event(u,params) ~
-            category(u, params)
+            category(u, params) ~
+            task(u)
           case None =>
             logger.info(s"No auth for $clientId")
             complete(AccountResponse.responseNotAuthorized.toJson.prettyPrint)

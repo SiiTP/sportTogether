@@ -14,6 +14,7 @@ object Tables {
   var users = TableQuery[Users]
   val userReports = TableQuery[UserReports]
   val eventUsers = TableQuery[UsersInEvents]
+  val tasks = TableQuery[EventTasks]
 }
 
 case class MapCategory(name: String, id: Option[Int] = None)
@@ -43,6 +44,7 @@ case class MapEventAdapter(
                             reports: Option[Int] = None,
                             description: Option[String] = None,
                             result: Option[String] = None,
+                            tasks: Option[Seq[EventTask]] = None,
                             isEnded: Boolean = false,
                             isJoined: Boolean = false,
                             isReported: Boolean = false,
@@ -54,7 +56,7 @@ case class MapEventAdapter(
   }
 }
 case class MapEventResultAdapter(id: Int, result: Option[String])
-
+case class EventTask(message:String, eventId:Option[Int] = None, userId:Option[Int] = None, id:Option[Int] = None)
 case class User(clientId: String, role: Int, id: Option[Int] = None)
 case class UserReport(userId: Int, eventId: Int)
 case class UserJoinEvent(userId: Int, deviceToken: String, eventId: Int)
@@ -66,15 +68,24 @@ object EntitiesJsonProtocol extends DefaultJsonProtocol {
   }
 
   implicit val userFormat = jsonFormat3(User)
+  implicit val tasksFormat = jsonFormat4(EventTask)
   implicit val eventUsersFormat = jsonFormat3(UserJoinEvent)
   implicit val mapEventFormat = jsonFormat12(MapEvent)
   implicit val mapEventResultAdapterFormat = jsonFormat2(MapEventResultAdapter)
   implicit val mapCategoryFormat = jsonFormat2(MapCategory)
-  implicit val mapEventAdapterFormat = jsonFormat15(MapEventAdapter)
+  implicit val mapEventAdapterFormat = jsonFormat16(MapEventAdapter)
   implicit val userReportFormat = jsonFormat2(UserReport)
 }
 
-
+class EventTasks(tag: Tag) extends Table[EventTask](tag,"tasks") {
+  def id = column[Int]("id",O.PrimaryKey,O.AutoInc)
+  def message = column[String]("message")
+  def userId = column[Option[Int]]("user_id")
+  def eventId = column[Option[Int]]("event_id")
+  def userFK = foreignKey("task_userFK",userId,Tables.users)(_.id, onDelete=ForeignKeyAction.Cascade)
+  def eventrFK = foreignKey("task_eventFK",eventId,Tables.events)(_.id, onDelete=ForeignKeyAction.Cascade)
+  def * = (message, eventId, userId, id.?) <> (EventTask.tupled, EventTask.unapply)
+}
 class UsersInEvents(tag: Tag) extends Table[UserJoinEvent](tag,"event_users") {
   def userId = column[Int]("user_id")
   def eventId = column[Int]("event_id")

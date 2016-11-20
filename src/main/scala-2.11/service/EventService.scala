@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef}
 import akka.pattern.AskableActorRef
 import akka.util.Timeout
 import com.typesafe.scalalogging.Logger
-import dao.{CategoryDAO, EventUsersDAO, EventsDAO}
+import dao.{TaskDao, CategoryDAO, EventUsersDAO, EventsDAO}
 import dao.filters.{CategoryFilters, EventFilters}
 import entities.db._
 import messages.{FcmMessage, FcmTextMessage}
@@ -102,6 +102,7 @@ object EventService {
             mapEvent.reports,
             mapEvent.description,
             mapEvent.result,
+            None,
             mapEvent.isEnded,
             isJoined,
             isReported,
@@ -122,7 +123,8 @@ class EventServiceActor(eventService: EventService,
                         remingderServiceActor: ActorRef,
                         categoyService: CategoryService,
                         messageServiceActor: ActorRef,
-                        joinEventService: JoinEventService) extends Actor {
+                        joinEventService: JoinEventService,
+                        taskService: ActorRef) extends Actor {
   implicit lazy val timeouts = Timeout(4.seconds)
 
 
@@ -144,6 +146,10 @@ class EventServiceActor(eventService: EventService,
 
           new EventsServiceFetcher().fetchOne(response).onComplete {
             case Success(result) =>
+              val tasks = event.tasks.getOrElse(Seq())
+              if (tasks.nonEmpty) {
+                taskService ! TaskService.CreateTasks(tasks.map(task => task.copy(eventId = result.id)))
+              }
               sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
               remingderServiceActor ! ReminderService.Add(result.toMapEvent)
             case Failure(t) =>
@@ -242,7 +248,6 @@ class EventServiceActor(eventService: EventService,
       }
 
   }
-
 }
 
 class EventsServiceFetcher() {
@@ -273,6 +278,7 @@ class EventsServiceFetcher() {
           mapEvent.reports,
           mapEvent.description,
           mapEvent.result,
+          None,
           mapEvent.isEnded,
           false,
           false,
