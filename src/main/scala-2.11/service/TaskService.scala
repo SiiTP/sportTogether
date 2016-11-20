@@ -33,15 +33,20 @@ class TaskService {
             case Some(id) =>
               Future{None}
             case None =>
-              taskDao.update(task).map(count => Some(task))
+              val newTask = task.copy(eventId = event.id)
+              taskDao.update(newTask).map(count => Some(newTask))
           }
         } else {
-          val newTask = task.copy(message = oldTask.message, userId = user.id)
+          val newTask = task.copy(message = oldTask.message, userId = user.id, eventId = event.id)
           oldTask.userId match {
             case None =>
               taskDao.update(newTask).map(count => Some(newTask))
             case Some(id) =>
-              Future{None}
+              if (id == user.id.get) {
+                taskDao.update(newTask.copy(userId = None)).map(count => Some(newTask.copy(userId = None)))
+              } else {
+                Future{None}
+              }
           }
         }
       })
