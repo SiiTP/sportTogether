@@ -21,8 +21,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
   * Created by ivan on 08.10.16.
   */
 class FcmService {
-//  val apiKey = "AIzaSyChprfOIcFm1yn0R-h8IrcQ3WBRh20A3rg"//test key
-  val apiKey = "AIzaSyAiLt5o7FNAZva-fkITjzyG7mejQopwYss"//technopark api key
+  val apiKey = "AIzaSyChprfOIcFm1yn0R-h8IrcQ3WBRh20A3rg"//test key
+//  val apiKey = "AIzaSyAiLt5o7FNAZva-fkITjzyG7mejQopwYss"//technopark api key
   val logger = Logger("webApp")
 
   /**

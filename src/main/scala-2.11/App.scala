@@ -41,19 +41,23 @@ object App extends MyResponse {
     val reminderService = new ReminderService(fcmService)
     reminderService.start()
     val reminderServiceActor = system.actorOf(Props(classOf[ReminderServiceActor],reminderService),"reminderService")
+    val messageServiceActor = system.actorOf(Props(classOf[MessageServiceActor], fcmService),"messageService")
     val joinService = new JoinEventService()
-    val joinServiceActor = system.actorOf(Props(classOf[JoinEventServiceActor], joinService),"joinService")
-    val messageServiceActor = system.actorOf(Props(classOf[MessageServiceActor], joinServiceActor, fcmService),"messageService")
+    val joinServiceActor = system.actorOf(Props(classOf[JoinEventServiceActor], joinService, messageServiceActor),"joinService")
+    messageServiceActor ! MessageService.InitJoinEventService(joinServiceActor)
     // create and start our service actor
     val categoryService = new CategoryService()
     val categoryServiceActor = system.actorOf(Props(classOf[CategoryServiceActor],categoryService),"categoryService")
 
+    val taskService = new TaskService()
+    val taskServiceActor = system.actorOf(Props(classOf[TaskServiceActor], taskService), "taskService")
     val eventService = new EventService()
-    val eventServiceActor = system.actorOf(Props(classOf[EventServiceActor],eventService, reminderServiceActor, categoryService, messageServiceActor),"eventService")
-
+    val eventServiceActor = system.actorOf(Props(classOf[EventServiceActor],eventService, reminderServiceActor, categoryService, messageServiceActor, joinService, taskServiceActor),"eventService")
     val accountService = new AccountService()
     val accountServiceActor = system.actorOf(Props(classOf[AccountServiceActor], accountService), "accountService")
-    val routeServiceActor = system.actorOf(Props(classOf[RouteServiceActor], accountServiceActor,eventServiceActor,categoryServiceActor, fcmService, joinServiceActor), "routeService")
+    val routeServiceActor = system.actorOf(Props(classOf[RouteServiceActor],
+      accountServiceActor,eventServiceActor,categoryServiceActor,
+      fcmService, joinServiceActor, taskServiceActor), "routeService")
 
 
     val future: Future[Any] = IO(Http) ? Http.Bind(routeServiceActor, interface = "localhost", port = port)
