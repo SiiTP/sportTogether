@@ -38,7 +38,7 @@ class AccountServiceActor(accountService: AccountService) extends Actor {
 
       future.onComplete {
         case Success(AccountResponse.CODE_AUTH_ALREADY) => s ! AccountResponse.responseAlreadyAuthorized.toJson.prettyPrint
-        case Success(MyResponse.CODE_SUCCESS)           => s ! AccountResponse.responseSuccess[User](None).toJson.prettyPrint
+        case Success(MyResponse.CODE_SUCCESS)           => s ! AccountResponse.responseSuccess[User](accountService.isAuthorized(clientId)).toJson.prettyPrint
         case Success(MyResponse.CODE_NOT_SUCCESS)       => s ! AccountResponse.responseNotSuccess().toJson.prettyPrint
         case Success(_)                                 => s ! AccountResponse.responseNotSuccess().toJson.prettyPrint
         case Failure(e) =>
@@ -76,7 +76,7 @@ class AccountService {
   def authorize(token: String, clientId: String) : Future[Int] = {
     val authorized: Option[User] = isAuthorized(clientId)
     authorized match {
-      case Some(user) => return Future.successful(AccountResponse.CODE_AUTH_ALREADY)
+      case Some(user) => return Future.successful(MyResponse.CODE_SUCCESS)
       case None =>
     }
     val auth0ResponseFuture : Future[String] = checkAuth0Token(token)
