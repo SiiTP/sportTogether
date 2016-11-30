@@ -76,6 +76,7 @@ object EventService {
   private val eventsDAO = new EventsDAO()
   private val eventUsersDAO = new EventUsersDAO()
   private val categoryDAO = new CategoryDAO()
+  private val tasksDao = new TaskDao()
 
   def toAdapterForm(futureSeq: Future[Seq[MapEvent]]): Future[Seq[MapEventAdapter]] = {
     logger.info("in to adapter form")
@@ -86,11 +87,13 @@ object EventService {
           val isReportedFuture = eventsDAO.isEventReported(mapEvent.userId, mapEvent.id)
           val categoryFuture = categoryDAO.get(mapEvent.categoryId)
           val countUsersFuture = eventsDAO.getCountUsersInEvent(mapEvent.id)
+          val tasksFuture = tasksDao.getEventTasks(mapEvent.id.get)
           for {
             isJoined <- isJoinedFuture
             isReported <- isReportedFuture
             category <- categoryFuture
             countUsers <- countUsersFuture
+            tasks <- tasksFuture
           } yield MapEventAdapter(
             mapEvent.name,
             category,
@@ -102,7 +105,7 @@ object EventService {
             mapEvent.reports,
             mapEvent.description,
             mapEvent.result,
-            None,
+            Some(tasks),
             mapEvent.isEnded,
             isJoined,
             isReported,
@@ -124,7 +127,7 @@ class EventServiceActor(eventService: EventService,
                         categoyService: CategoryService,
                         messageServiceActor: ActorRef,
                         joinEventService: JoinEventService,
-                        taskService: ActorRef) extends Actor {
+                        taskService: TaskService) extends Actor {
   implicit lazy val timeouts = Timeout(4.seconds)
 
 
@@ -148,13 +151,23 @@ class EventServiceActor(eventService: EventService,
             case Success(result) =>
               val tasks = event.tasks.getOrElse(Seq())
               if (tasks.nonEmpty) {
-                taskService ! TaskService.CreateTasks(tasks.map(task => task.copy(eventId = result.id)))
+                logger.debug("tasks")
+                taskService.createTasks(tasks.map(task => task.copy(eventId = result.id))).onComplete{
+                  case Success(createdTasks) =>
+                    sended ! EventResponse.responseSuccess(Some(result.copy(tasks = Some(createdTasks)))).toJson.prettyPrint
+                    remingderServiceActor ! ReminderService.Add(result.toMapEvent)
+                  case Failure(t) =>
+                    logger.debug("exception add tasks", t)
+                    sended ! EventResponse.unexpectedError(t.getMessage).toJson.prettyPrint
+                }
+              } else {
+                logger.debug("No tasks")
+                sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
+                remingderServiceActor ! ReminderService.Add(result.toMapEvent)
               }
-              sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
-              remingderServiceActor ! ReminderService.Add(result.toMapEvent)
             case Failure(t) =>
-              t.printStackTrace()
-              sended ! EventResponse.unexpectedError.toJson.prettyPrint
+              logger.debug("exception add event", t)
+              sended ! EventResponse.unexpectedError(t.getMessage).toJson.prettyPrint
           }
       }
     case GetEvents(filters) =>
@@ -253,39 +266,41 @@ class EventServiceActor(eventService: EventService,
 class EventsServiceFetcher() {
   val categoryDAO = new CategoryDAO()
   val eventsDAO = new EventsDAO()
+  val taskDao = new TaskDao()
   val logger = Logger("webApp")
   def fetch(eventsFuture: Future[Seq[MapEvent]]): Future[Seq[MapEventAdapter]] = {
     EventService.toAdapterForm(eventsFuture)
   }
   def fetchOne(f: Future[MapEvent]): Future[MapEventAdapter] = {
     f.flatMap((f:MapEvent) => {
-      fetchCategory(Seq(f)).map((f:Seq[MapEventAdapter]) => f.head)
+      EventService.toAdapterForm(Future{Seq(f)}).map((f:Seq[MapEventAdapter]) => f.head)
     })
   }
-  private def fetchCategory(events: Seq[MapEvent]): Future[Seq[MapEventAdapter]] = {
-    val catIds = events.map(_.categoryId).toSet
-    val params = Map("category:id" -> catIds.map(_.toString).toList)
-    categoryDAO.getCategories(new CategoryFilters(params)).map((categories:Seq[MapCategory]) => {
-      events.map((mapEvent: MapEvent) => {
-        MapEventAdapter(
-          mapEvent.name,
-          categories.find(_.id.get == mapEvent.categoryId).getOrElse(MapCategory("",None)),
-          mapEvent.latitude,
-          mapEvent.longtitude,
-          mapEvent.date,
-          Some(0),
-          mapEvent.maxPeople,
-          mapEvent.reports,
-          mapEvent.description,
-          mapEvent.result,
-          None,
-          mapEvent.isEnded,
-          false,
-          false,
-          mapEvent.userId,
-          mapEvent.id
-        )
-      })
-    })
-  }
+
+//  private def fetchCategory(events: Seq[MapEvent]): Future[Seq[MapEventAdapter]] = {
+//    val catIds = events.map(_.categoryId).toSet
+//    val params = Map("category:id" -> catIds.map(_.toString).toList)
+//    categoryDAO.getCategories(new CategoryFilters(params)).map((categories:Seq[MapCategory]) => {
+//      events.map((mapEvent: MapEvent) => {
+//        MapEventAdapter(
+//          mapEvent.name,
+//          categories.find(_.id.get == mapEvent.categoryId).getOrElse(MapCategory("",None)),
+//          mapEvent.latitude,
+//          mapEvent.longtitude,
+//          mapEvent.date,
+//          Some(0),
+//          mapEvent.maxPeople,
+//          mapEvent.reports,
+//          mapEvent.description,
+//          mapEvent.result,
+//          None,
+//          mapEvent.isEnded,
+//          false,
+//          false,
+//          mapEvent.userId,
+//          mapEvent.id
+//        )
+//      })
+//    })
+//  }
 }

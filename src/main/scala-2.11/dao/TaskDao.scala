@@ -15,8 +15,8 @@ class TaskDao extends DatabaseDAO[EventTask,Int] {
     val insert = (table returning table.map(_.id)).into( (item,id) => item.copy(id = Some(id)))
     execute(insert += r)
   }
-  def createTasks(tasks: Seq[EventTask]) = {
-    execute(table ++= tasks)
+  def createTasks(tasks: Seq[EventTask]): Future[Seq[EventTask]] = {
+    execute((table returning table.map(_.id)).into((item, id) => item.copy(id = Some(id))) ++= tasks)
   }
   def getEventTasks(eId: Int) = {
     execute(table.filter(_.eventId === eId).result)
