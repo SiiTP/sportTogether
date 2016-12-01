@@ -46,8 +46,8 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef,
   override def sendIsAuthorized(clientId: String) = {
     accountServiceRef ? IsAuthorized(clientId)
   }
-  override def sendAuthorize(clientId: String, token: String): Future[Any] = {
-    accountServiceRef ? Authorize(token, clientId)
+  override def sendAuthorize(user: User, token: String): Future[Any] = {
+    accountServiceRef ? Authorize(user, token)
   }
   override def sendUnauthorize(session: String): Future[Any] = {
     accountServiceRef ? Unauthorize(session)
@@ -103,7 +103,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef,
 object RouteServiceActor {
   case class RouteHello(msg: String)
 
-  case class Authorize(token: String, clientId: String)
+  case class Authorize(user: User, token: String)
   case class IsAuthorized(clientId: String)
   case class Unauthorize(clientId: String)
   case class GetAccount(clientId: String)
@@ -120,7 +120,7 @@ trait RouteService extends HttpService {
 
   def sendIsAuthorized(session: String): Future[Any]
 
-  def sendAuthorize(clientId: String, token: String): Future[Any]
+  def sendAuthorize(user: User, token: String): Future[Any]
 
   def sendUnauthorize(session: String): Future[Any]
 
@@ -187,8 +187,11 @@ trait RouteService extends HttpService {
         }
       } ~
       post {
-        onComplete(sendAuthorize(clientId, token)) { tryAny =>
-          defaultResponse(tryAny, s"POST /auth  clientId: $clientId and token: $token")
+        entity(as[UserAdapter]) { adapter =>
+          onComplete(sendAuthorize(User(clientId = clientId,1,name = adapter.name, avatar = adapter.avatar), token)) { tryAny =>
+
+            defaultResponse(tryAny, s"POST /auth  clientId: $clientId and token: $token")
+          }
         }
       }
   }

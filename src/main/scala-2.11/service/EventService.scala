@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef}
 import akka.pattern.AskableActorRef
 import akka.util.Timeout
 import com.typesafe.scalalogging.Logger
-import dao.{TaskDao, CategoryDAO, EventUsersDAO, EventsDAO}
+import dao._
 import dao.filters.{CategoryFilters, EventFilters}
 import entities.db._
 import messages.{FcmMessage, FcmTextMessage}
@@ -77,6 +77,7 @@ object EventService {
   private val eventUsersDAO = new EventUsersDAO()
   private val categoryDAO = new CategoryDAO()
   private val tasksDao = new TaskDao()
+  private val userDao = new UserDAO()
 
   def toAdapterForm(futureSeq: Future[Seq[MapEvent]]): Future[Seq[MapEventAdapter]] = {
     logger.info("in to adapter form")
@@ -94,6 +95,7 @@ object EventService {
             category <- categoryFuture
             countUsers <- countUsersFuture
             tasks <- tasksFuture
+            user <- userDao.get(mapEvent.userId.getOrElse(0))
           } yield MapEventAdapter(
             mapEvent.name,
             category,
@@ -109,7 +111,7 @@ object EventService {
             mapEvent.isEnded,
             isJoined,
             isReported,
-            mapEvent.userId,
+            Some(user),
             mapEvent.id
           )
         })
@@ -143,6 +145,7 @@ class EventServiceActor(eventService: EventService,
           } else {
             response = categoyService.createCategory(event.category.name).flatMap((category: MapCategory) => {
               logger.debug("created new category: " + category)
+              logger.debug("add new event: " + event)
               eventService.addSimpleEvent(event.copy(category = category).toMapEvent,user)
             })
           }

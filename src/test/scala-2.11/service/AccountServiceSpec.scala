@@ -52,7 +52,7 @@ class AccountServiceSpec extends FlatSpec with Matchers with BeforeAndAfter with
     it should "correctly create user when authorize unexisted user" in {
       import EntitiesJsonProtocol._
 
-      val future: Future[String] = (accountServiceActor ? Authorize("token", "clientid")).asInstanceOf[Future[String]]
+      val future: Future[String] = (accountServiceActor ? Authorize(User(clientId = "token",role = 1), "clientid")).asInstanceOf[Future[String]]
       whenReady(future) { result =>
         result shouldEqual AccountResponse.responseSuccess[User](None).toJson.prettyPrint
       }
@@ -63,7 +63,7 @@ class AccountServiceSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
       val userCreateFuture: Future[User] = userDAO.create(User("clientid", Roles.USER.getRoleId))
       whenReady(userCreateFuture) { user =>
-        val authFuture: Future[String] = (accountServiceActor ? Authorize("token", "clientid")).asInstanceOf[Future[String]]
+        val authFuture: Future[String] = (accountServiceActor ? Authorize(User(clientId = "token",role = 1), "clientid")).asInstanceOf[Future[String]]
         whenReady(authFuture) { result =>
           result shouldEqual AccountResponse.responseSuccess[User](None).toJson.prettyPrint
         }
@@ -75,10 +75,10 @@ class AccountServiceSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     val userCreateFuture: Future[User] = userDAO.create(User("clientid", Roles.USER.getRoleId))
     whenReady(userCreateFuture) { user =>
-      val authFuture: Future[String] = (accountServiceActor ? Authorize("token", "clientid")).asInstanceOf[Future[String]]
+      val authFuture: Future[String] = (accountServiceActor ? Authorize(User(clientId = "token",role = 1), "clientid")).asInstanceOf[Future[String]]
       whenReady(authFuture) { result =>
         result shouldEqual AccountResponse.responseSuccess[User](None).toJson.prettyPrint
-        val authFuture2: Future[String] = (accountServiceActor ? Authorize("token", "clientid")).asInstanceOf[Future[String]]
+        val authFuture2: Future[String] = (accountServiceActor ? Authorize(User(clientId = "token",role = 1), "clientid")).asInstanceOf[Future[String]]
         whenReady(authFuture2) { result =>
           result shouldEqual AccountResponse.responseAlreadyAuthorized.toJson.prettyPrint
         }
@@ -99,7 +99,7 @@ class AccountServiceSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     val userCreateFuture: Future[User] = userDAO.create(User("clientid", Roles.USER.getRoleId))
     whenReady(userCreateFuture) { user =>
-      val authFuture: Future[String] = (accountServiceActor ? Authorize("token", "clientid")).asInstanceOf[Future[String]]
+      val authFuture: Future[String] = (accountServiceActor ? Authorize(User(clientId = "token",role = 1), "clientid")).asInstanceOf[Future[String]]
 
       whenReady(authFuture) { result =>
         result shouldEqual AccountResponse.responseSuccess[User](None).toJson.prettyPrint
@@ -118,7 +118,7 @@ class AccountServiceSpec extends FlatSpec with Matchers with BeforeAndAfter with
 
     val userCreateFuture: Future[User] = userDAO.create(User("clientid", Roles.USER.getRoleId))
     whenReady(userCreateFuture) { user =>
-      val authFuture: Future[String] = (accountServiceActor ? Authorize("token", "clientid")).asInstanceOf[Future[String]]
+      val authFuture: Future[String] = (accountServiceActor ? Authorize(User(clientId = "token",role = 1), "clientid")).asInstanceOf[Future[String]]
 
       whenReady(authFuture) { result =>
         result shouldEqual AccountResponse.responseSuccess[User](None).toJson.prettyPrint
@@ -127,7 +127,7 @@ class AccountServiceSpec extends FlatSpec with Matchers with BeforeAndAfter with
         whenReady(unauthFuture) {unauthResponse =>
           unauthResponse shouldEqual AccountResponse.responseSuccess[User](None).toJson.prettyPrint
 
-          val authFuture: Future[String] = (accountServiceActor ? Authorize("token", "clientid")).asInstanceOf[Future[String]]
+          val authFuture: Future[String] = (accountServiceActor ? Authorize(User(clientId = "token",role = 1), "clientid")).asInstanceOf[Future[String]]
           whenReady(authFuture) { authResponse =>
             authResponse shouldEqual AccountResponse.responseSuccess[User](None).toJson.prettyPrint
           }

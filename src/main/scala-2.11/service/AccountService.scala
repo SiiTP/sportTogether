@@ -32,13 +32,13 @@ class AccountServiceActor(accountService: AccountService) extends Actor {
           sender ! AccountResponse.responseSuccess[User](Some(user)).toJson.prettyPrint
         case None => sender ! AccountResponse.responseNotAuthorized.toJson.prettyPrint
       }
-    case Authorize(token, clientId) =>
+    case Authorize(user, token) =>
       val s = sender
-      val future: Future[Int] = accountService.authorize(token, clientId)
+      val future: Future[Int] = accountService.authorize(user, token)
 
       future.onComplete {
         case Success(AccountResponse.CODE_AUTH_ALREADY) => s ! AccountResponse.responseAlreadyAuthorized.toJson.prettyPrint
-        case Success(MyResponse.CODE_SUCCESS)           => s ! AccountResponse.responseSuccess[User](accountService.isAuthorized(clientId)).toJson.prettyPrint
+        case Success(MyResponse.CODE_SUCCESS)           => s ! AccountResponse.responseSuccess[User](accountService.isAuthorized(user.clientId)).toJson.prettyPrint
         case Success(MyResponse.CODE_NOT_SUCCESS)       => s ! AccountResponse.responseNotSuccess().toJson.prettyPrint
         case Success(_)                                 => s ! AccountResponse.responseNotSuccess().toJson.prettyPrint
         case Failure(e) =>
@@ -73,8 +73,8 @@ class AccountService {
       None
   }
 
-  def authorize(token: String, clientId: String) : Future[Int] = {
-    val authorized: Option[User] = isAuthorized(clientId)
+  def authorize(user: User, token: String) : Future[Int] = {
+    val authorized: Option[User] = isAuthorized(user.clientId)
     authorized match {
       case Some(user) => return Future.successful(MyResponse.CODE_SUCCESS)
       case None =>
@@ -91,17 +91,17 @@ class AccountService {
     }
     isRightTokenFuture.flatMap({
       case true => {
-        userDAO.getByClientId(clientId).flatMap {
+        userDAO.getByClientId(user.clientId).flatMap {
           case user: User =>
             logger.info(s"your clientId already exists. Success!")
-            _authAccounts.put(clientId, user.copy())
+            _authAccounts.put(user.clientId, user.copy())
             Future.successful(MyResponse.CODE_SUCCESS)
         } recoverWith {
           case exc: NoSuchElementException =>
-            userDAO.create(User(clientId, Roles.USER.getRoleId)) map {
+            userDAO.create(user) map {
               case user =>
                 logger.info(s"your clientId is new. You registered. Success!")
-                _authAccounts.put(clientId, user.copy())
+                _authAccounts.put(user.clientId, user.copy())
                 MyResponse.CODE_SUCCESS
             } recover {
               case exc: Throwable =>

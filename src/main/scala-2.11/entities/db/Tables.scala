@@ -48,16 +48,17 @@ case class MapEventAdapter(
                             isEnded: Boolean = false,
                             isJoined: Boolean = false,
                             isReported: Boolean = false,
-                            userId: Option[Int] = None,
+                            user: Option[User] = None,
                             id: Option[Int] = None
                           ) {
   def toMapEvent : MapEvent = {
-    MapEvent(name,category.id.get, latitude, longtitude, date, maxPeople, reports, description, result, isEnded, userId, id)
+    MapEvent(name,category.id.get, latitude, longtitude, date, maxPeople, reports, description, result, isEnded, user.getOrElse(User("",0,Some(0))).id, id)
   }
 }
+case class UserAdapter(name: Option[String], avatar: Option[String])
 case class MapEventResultAdapter(id: Int, result: Option[String])
 case class EventTask(message:String, eventId:Option[Int] = None, userId:Option[Int] = None, id:Option[Int] = None)
-case class User(clientId: String, role: Int, id: Option[Int] = None)
+case class User(clientId: String, role: Int, id: Option[Int] = None, name: Option[String] = None, avatar: Option[String] = None)
 case class UserReport(userId: Int, eventId: Int)
 case class UserJoinEvent(userId: Int, deviceToken: String, eventId: Int)
 object EntitiesJsonProtocol extends DefaultJsonProtocol {
@@ -67,7 +68,8 @@ object EntitiesJsonProtocol extends DefaultJsonProtocol {
     override def write(obj: Timestamp): JsValue = JsNumber(obj.getTime)
   }
 
-  implicit val userFormat = jsonFormat3(User)
+  implicit val userFormat = jsonFormat5(User)
+  implicit val userAdapterFormat = jsonFormat2(UserAdapter)
   implicit val tasksFormat = jsonFormat4(EventTask)
   implicit val eventUsersFormat = jsonFormat3(UserJoinEvent)
   implicit val mapEventFormat = jsonFormat12(MapEvent)
@@ -133,6 +135,8 @@ class MapEvents(tag: Tag) extends Table[MapEvent](tag, "events") {
 class Users(tag:Tag) extends Table[User](tag,"user"){
   def id = column[Int]("id",O.PrimaryKey,O.AutoInc)
   def clientId = column[String]("clientId")
+  def name = column[Option[String]]("name")
+  def avatar = column[Option[String]]("avatar")
   def role = column[Int]("role")
-  def * = (clientId, role, id.?) <> (User.tupled,User.unapply)
+  def * = (clientId, role, id.?, name, avatar) <> (User.tupled,User.unapply)
 }
