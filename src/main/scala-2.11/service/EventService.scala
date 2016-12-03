@@ -61,10 +61,10 @@ class EventService {
 
 object EventService {
   case class AddEvent(event: MapEventAdapter,user: User)
-  case class GetEvents(filters: EventFilters)
-  case class GetUserEvents(id: Int)
-  case class GetEvent(id: Int)
-  case class GetEventsByDistance(distance: Double, longtitude: Double, latitude: Double, filters: EventFilters)
+  case class GetEvents(filters: EventFilters,user: User)
+  case class GetUserEvents(id: Int,user: User)
+  case class GetEvent(id: Int,user: User)
+  case class GetEventsByDistance(distance: Double, longtitude: Double, latitude: Double, filters: EventFilters,user: User)
   case class UpdateEvent(event: MapEvent, user: User)
   case class ReportEvent(id: Int, user: User)
   case class GetEventsByCategoryId(id: Int)
@@ -79,13 +79,13 @@ object EventService {
   private val tasksDao = new TaskDao()
   private val userDao = new UserDAO()
 
-  def toAdapterForm(futureSeq: Future[Seq[MapEvent]]): Future[Seq[MapEventAdapter]] = {
+  def toAdapterForm(futureSeq: Future[Seq[MapEvent]], user: User): Future[Seq[MapEventAdapter]] = {
     logger.info("in to adapter form")
     val futureAdapters = futureSeq.flatMap(seq => {
       Future.sequence(
         seq.map(mapEvent => {
-          val isJoinedFuture = eventUsersDAO.isUserJoined(mapEvent.userId, mapEvent.id)
-          val isReportedFuture = eventsDAO.isEventReported(mapEvent.userId, mapEvent.id)
+          val isJoinedFuture = eventUsersDAO.isUserJoined(user.id, mapEvent.id)
+          val isReportedFuture = eventsDAO.isEventReported(user.id, mapEvent.id)
           val categoryFuture = categoryDAO.get(mapEvent.categoryId)
           val countUsersFuture = eventsDAO.getCountUsersInEvent(mapEvent.id)
           val tasksFuture = tasksDao.getEventTasks(mapEvent.id.get)
@@ -150,7 +150,7 @@ class EventServiceActor(eventService: EventService,
             })
           }
 
-          new EventsServiceFetcher().fetchOne(response).onComplete {
+          new EventsServiceFetcher(user).fetchOne(response).onComplete {
             case Success(result) =>
               val tasks = event.tasks.getOrElse(Seq())
               if (tasks.nonEmpty) {
@@ -173,9 +173,9 @@ class EventServiceActor(eventService: EventService,
               sended ! EventResponse.unexpectedError(t.getMessage).toJson.prettyPrint
           }
       }
-    case GetEvents(filters) =>
+    case GetEvents(filters, user) =>
       val sended = sender()
-      new EventsServiceFetcher().fetch(eventService.getEventsAround(filters)).onComplete {
+      new EventsServiceFetcher(user).fetch(eventService.getEventsAround(filters)).onComplete {
         case Success(result) =>
           logger.info(s"success when get events : " + result)
           sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
@@ -183,21 +183,21 @@ class EventServiceActor(eventService: EventService,
           logger.info(s"fail when get events : " + e.getMessage)
           sended ! EventResponse.responseSuccess[MapEvent](None).toJson.prettyPrint
       }
-    case GetUserEvents(id) =>
+    case GetUserEvents(id, user) =>
       val sended = sender()
-      new EventsServiceFetcher().fetch(eventService.getUserEvents(id)).onSuccess {
+      new EventsServiceFetcher(user).fetch(eventService.getUserEvents(id)).onSuccess {
         case eventsSeq => sended ! EventResponse.responseSuccess(Some(eventsSeq)).toJson.prettyPrint
       }
-    case GetEvent(id) =>
+    case GetEvent(id, user) =>
       val sended = sender()
       val eventFuture = eventService.getEvent(id)
-      new EventsServiceFetcher().fetchOne(eventFuture).onComplete {
+      new EventsServiceFetcher(user).fetchOne(eventFuture).onComplete {
         case Success(event) => sended ! EventResponse.responseSuccess(Some(event)).toJson.prettyPrint
         case Failure(t) => sended ! EventResponse.notFoundError.toJson.prettyPrint
       }
-    case GetEventsByDistance(distance, longtitude, latitude, filters) =>
+    case GetEventsByDistance(distance, longtitude, latitude, filters, user) =>
       val sended = sender()
-      new EventsServiceFetcher().fetch(eventService.getEventsInDistance(distance, longtitude, latitude, filters)).onComplete {
+      new EventsServiceFetcher(user).fetch(eventService.getEventsInDistance(distance, longtitude, latitude, filters)).onComplete {
         case Success(events) => sended ! EventResponse.responseSuccess(Some(events)).toJson.prettyPrint
         case Failure(t) => sended ! EventResponse.unexpectedError.toJson.prettyPrint
       }
@@ -266,17 +266,17 @@ class EventServiceActor(eventService: EventService,
   }
 }
 
-class EventsServiceFetcher() {
+class EventsServiceFetcher(user: User) {
   val categoryDAO = new CategoryDAO()
   val eventsDAO = new EventsDAO()
   val taskDao = new TaskDao()
   val logger = Logger("webApp")
   def fetch(eventsFuture: Future[Seq[MapEvent]]): Future[Seq[MapEventAdapter]] = {
-    EventService.toAdapterForm(eventsFuture)
+    EventService.toAdapterForm(eventsFuture, user: User)
   }
   def fetchOne(f: Future[MapEvent]): Future[MapEventAdapter] = {
     f.flatMap((f:MapEvent) => {
-      EventService.toAdapterForm(Future{Seq(f)}).map((f:Seq[MapEventAdapter]) => f.head)
+      EventService.toAdapterForm(Future{Seq(f)}, user: User).map((f:Seq[MapEventAdapter]) => f.head)
     })
   }
 

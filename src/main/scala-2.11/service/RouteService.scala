@@ -54,9 +54,9 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef,
   }
 
 
-  override def sendGetEvents(param: Map[String,List[String]]) = {
+  override def sendGetEvents(param: Map[String,List[String]],user: User) = {
 
-    eventsServiceRef ? EventService.GetEvents(new EventFilters(param))
+    eventsServiceRef ? EventService.GetEvents(new EventFilters(param),user)
   }
   def receive = handleMessages orElse runRoute(myRoute)
 
@@ -69,9 +69,9 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef,
             eventsServiceRef ? EventService.AddEvent(event,user)
 
   }
-  override def sendGetUserEvents(id:Int) = eventsServiceRef ? EventService.GetUserEvents(id)
+  override def sendGetUserEvents(id:Int,user: User) = eventsServiceRef ? EventService.GetUserEvents(id, user)
 
-  override def sendGetEvent(id: Int) = eventsServiceRef ? EventService.GetEvent(id)
+  override def sendGetEvent(id: Int,user: User) = eventsServiceRef ? EventService.GetEvent(id,user)
 
   override def sendCreateCategory(name: String): Future[Any] = _categoryService ? CategoryService.CreateCategory(name)
 
@@ -81,7 +81,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef,
   override def sendGetCategoriesByPartOfName(subname: String): Future[Any] = _categoryService ? CategoryService.GetCategoriesByPartOfName(subname)
 
 
-  override def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double, param: Map[String,List[String]]): Future[Any] = _eventService ? EventService.GetEventsByDistance(distance, longtitude, latitude, new EventFilters(param))
+  override def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double, param: Map[String,List[String]],user: User): Future[Any] = _eventService ? EventService.GetEventsByDistance(distance, longtitude, latitude, new EventFilters(param), user)
   override def sendUpdateEvents(event: MapEvent, user: User) = _eventService ? EventService.UpdateEvent(event, user)
   override def sendUpdateResult(event: MapEventResultAdapter, user: User) = _eventService ? EventService.UpdateEventResult(event, user)
   override def sendFinishEvent(id: Int, user: User): Future[Any] = _eventService ? EventService.FinishEvent(id, user)
@@ -126,16 +126,16 @@ trait RouteService extends HttpService {
 
   def sendAddEvent(event: MapEventAdapter, user: User): Future[Any]
 
-  def sendGetEvents(param: Map[String,List[String]]): Future[Any]
+  def sendGetEvents(param: Map[String,List[String]], user: User): Future[Any]
 
-  def sendGetUserEvents(id: Int): Future[Any]
+  def sendGetUserEvents(id: Int, user: User): Future[Any]
   def sendGetJoinedEvents(user: User): Future[Any]
 
   def sendGetEventsByCategoryId(id: Int): Future[Any]
 
-  def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double, param: Map[String,List[String]]): Future[Any]
+  def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double, param: Map[String,List[String]], user: User): Future[Any]
 
-  def sendGetEvent(id: Int): Future[Any]
+  def sendGetEvent(id: Int, user: User): Future[Any]
 
   def sendGetEventsByCategoryName(name: String): Future[Any]
 
@@ -264,7 +264,7 @@ trait RouteService extends HttpService {
         } ~
         pathEnd {
           get {
-            onComplete(sendGetEvent(id)) { tryAny =>
+            onComplete(sendGetEvent(id, user)) { tryAny =>
                 defaultResponse(tryAny, s"GET event/$id")
             }
           } ~
@@ -297,7 +297,7 @@ trait RouteService extends HttpService {
     } ~
     pathEnd {
       get {
-        onComplete(sendGetEvents(params)) { tryAny =>
+        onComplete(sendGetEvents(params, user)) { tryAny =>
           defaultResponse(tryAny, s"GET event/")
         }
       } ~
@@ -311,7 +311,7 @@ trait RouteService extends HttpService {
     } ~
     pathPrefix("user") {
       get {
-        onComplete(sendGetUserEvents(user.id.get)) { tryAny =>
+        onComplete(sendGetUserEvents(user.id.get, user)) { tryAny =>
           defaultResponse(tryAny, "GET event/user")
         }
       }
@@ -322,7 +322,7 @@ trait RouteService extends HttpService {
           parameter("latitude".as[Double], "longtitude".as[Double]) {
             (latitude, longtitude) =>
               get {
-                onComplete(sendGetEventsDistance(distance, latitude, longtitude, params)) { tryAny =>
+                onComplete(sendGetEventsDistance(distance, latitude, longtitude, params, user)) { tryAny =>
                   defaultResponse(tryAny, s"GET event/distance/$distance Latittude $latitude and $longtitude")
                 }
               }

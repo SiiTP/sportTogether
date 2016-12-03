@@ -29,7 +29,7 @@ class JoinEventService {
   }
 
   def getEventsOfUserJoined(user: User): Future[Seq[MapEventAdapter]] = {
-    EventService.toAdapterForm(eventUsersDAO.getEventsOfUserJoined(user))
+    EventService.toAdapterForm(eventUsersDAO.getEventsOfUserJoined(user), user)
   }
   def getJoinedUserToken(userId: Int, eId: Int): Future[String] = {
     eventUsersDAO.getById(eId).map(seq => seq.
