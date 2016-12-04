@@ -49,10 +49,10 @@
         <!--<appender-ref ref="ASYNC_SLICK" />-->
     <!--</logger>-->
 
-    <!--<logger name="slick.jdbc.JdbcBackend.statement" level="DEBUG"/>-->
+    <logger name="slick.jdbc.JdbcBackend.statement" level="DEBUG"/>
 
-    <!--<logger name="webApp" level="DEBUG">-->
-        <!--<appender-ref ref="STDOUT" />-->
-        <!--<appender-ref ref="ASYNC" />-->
-    <!--</logger>-->
+    <logger name="webApp" level="INFO">
+        <appender-ref ref="STDOUT" />
+        <appender-ref ref="ASYNC" />
+    </logger>
 </configuration>

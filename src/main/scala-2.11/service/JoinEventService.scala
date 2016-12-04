@@ -3,7 +3,7 @@ package service
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.AskableActorRef
 import com.typesafe.scalalogging.Logger
-import dao.{EventUsersDAO, EventsDAO}
+import dao.{TaskDao, EventUsersDAO, EventsDAO}
 import entities.db.{MapEvent, MapEventAdapter, User, UserJoinEvent}
 import messages.{FcmMessage, FcmTextMessage}
 import response.JoinServiceResponse
@@ -21,11 +21,20 @@ class JoinEventService {
   private val logger = Logger("webApp")
   private val eventUsersDAO = new EventUsersDAO()
   private val eventsDAO = new EventsDAO()
+  private val tasksDao = new TaskDao()
 
   //if store in database replace with dao
   def add(userJoinEvent: UserJoinEvent) = {
     logger.debug(s"add ${userJoinEvent.userId} to event ${userJoinEvent.eventId} , token:${userJoinEvent.deviceToken}")
-    eventUsersDAO.create(userJoinEvent)
+    eventUsersDAO.create(userJoinEvent).andThen{
+      case e =>
+        e match {
+          case Success(uje) =>
+            eventsDAO.incUsersNow(userJoinEvent.eventId)
+          case Failure(t) =>
+        }
+
+    }
   }
 
   def getEventsOfUserJoined(user: User): Future[Seq[MapEventAdapter]] = {
@@ -44,7 +53,17 @@ class JoinEventService {
     eventsDAO.get(eid).flatMap(event => getJoinedUserToken(event.userId.get, eid))
   }
   def leaveEvent(user: User, eId: Int) = {
-    eventUsersDAO.deleteFromEvent(eId, user.id.get)
+    eventUsersDAO.deleteFromEvent(eId, user.id.get).andThen{
+      case e =>
+        e match {
+          case Success(count) =>
+            if (count > 0) {
+              eventsDAO.decUsersNow(eId)
+              tasksDao.resetUserTasksInEvent(user.id.get, eId)
+            }
+          case Failure(t) =>
+        }
+    }
   }
   def getTokens(eId: Int): Future[Seq[UserJoinEvent]] = {
     eventUsersDAO.getById(eId)
@@ -89,7 +108,7 @@ class JoinEventServiceActor(service: JoinEventService, messageServiceActor: Acto
     case AddUserToEvent(ev, user, token) =>
       val sended = new SenderHelper(sender())
       val userJoinEvent = UserJoinEvent(user.id.get, token, ev)
-      logger.debug("trying to add: " + userJoinEvent)
+//      logger.debug("trying to add: " + userJoinEvent)
       service.isUserAlreadyJoined(user, ev)
         .flatMap(isFullChain(_)(userJoinEvent,sended))
         .flatMap(addChain(_)(userJoinEvent,sended)).onComplete {
@@ -106,9 +125,9 @@ class JoinEventServiceActor(service: JoinEventService, messageServiceActor: Acto
       val sended = sender()
       service.getCreatorToken(eId).onComplete {
         case Success(token) =>
-          logger.debug(s"creator token: $token")
           sended ! token
         case Failure(e) =>
+          sended ! JoinServiceResponse.unexpectedError.toJson.prettyPrint
           logger.debug("exception get creator token :", e)
       }
     case GetEventsOfUserJoined(user) =>
@@ -136,7 +155,6 @@ class JoinEventServiceActor(service: JoinEventService, messageServiceActor: Acto
           if (result == 0) {
             sended ! JoinServiceResponse.userNotFoundInEvent.toJson.prettyPrint
           } else {
-            logger.debug(s"Events left count: $result")
             sended ! JoinServiceResponse.responseSuccess(Some(s"Событий покинуто: $result")).toJson.prettyPrint
             messageServiceActor ! MessageService.SendEventsTextMessageToCreator(eId,
               FcmTextMessage(s"Пользователь ${user.clientId} покинл событие",s"Пользователь покинул событие $eId",FcmMessage.USER_LEFT))
@@ -148,7 +166,6 @@ class JoinEventServiceActor(service: JoinEventService, messageServiceActor: Acto
       }
   }
   private def isFullChain(result: Boolean)(userJoinEvent: UserJoinEvent, sender: SenderHelper): Future[Boolean] = {
-    logger.debug(s"is joined user? - $result")
     if (!result) {
       service.isFullEvent(userJoinEvent.eventId)
     } else {
@@ -157,7 +174,6 @@ class JoinEventServiceActor(service: JoinEventService, messageServiceActor: Acto
     }
   }
   private def addChain(result: Boolean)(userJoinEvent: UserJoinEvent, sended: SenderHelper): Future[Option[UserJoinEvent]] = {
-    logger.debug(s"is full event ? - $result")
     if (!result) {
       service.add(userJoinEvent).map(Some(_))
     } else {
@@ -166,20 +182,3 @@ class JoinEventServiceActor(service: JoinEventService, messageServiceActor: Acto
     }
   }
 }
-
-/*
-map(isFull => {
-              if (!isFull) {
-                service.add(ev, user, token)
-              } else {
-                sended ! JoinServiceResponse.eventIsFull.toJson.prettyPrint
-              }
-            }).onComplete {
-              case Success(userJoinEvent) =>
-                sended ! JoinServiceResponse.responseSuccess(Some(userJoinEvent)).toJson.prettyPrint
-              case Failure(t) =>
-                sended ! JoinServiceResponse.unexpectedError.toJson.prettyPrint
-            }
-          }
-      }
- */

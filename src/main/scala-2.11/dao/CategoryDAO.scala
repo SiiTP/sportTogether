@@ -46,6 +46,9 @@ class CategoryDAO extends DatabaseDAO[MapCategory,Int]{
     val action = query.update(r)
     execute(action)
   }
+  def getCategoriesByIds(ids: Seq[Int]): Future[Seq[MapCategory]] = {
+    execute(table.filter(_.id inSet  ids).result)
+  }
   override def get(categoryId: Int): Future[MapCategory] = execute(table.filter(_.id === categoryId).result.head)
   override def delete(r: MapCategory): Future[Int] = execute(table.filter(_.id===r.id).delete)
 }

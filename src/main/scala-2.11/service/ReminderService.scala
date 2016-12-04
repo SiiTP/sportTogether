@@ -25,12 +25,12 @@ class ReminderService(_fcmService: ActorRef) extends Thread{
   private var array = new immutable.ParVector[MapEvent]()
   def addEvent(event: MapEvent): Unit = {
     array = array :+ event
-    logger.debug("add event: " + event)
-    logger.debug("size: " + array.length)
+//    logger.debug("add event: " + event)
+//    logger.debug("size: " + array.length)
 
   }
   def updateEvent(event: MapEvent) = {
-    logger.debug("updating " + event)
+//    logger.debug("updating " + event)
     val index = array.indexWhere(_.id == event.id)
     if (index != -1) {
       array = array.updated(index, event)
@@ -42,12 +42,10 @@ class ReminderService(_fcmService: ActorRef) extends Thread{
       val workArray = array.filter(event => {
         event.date.toLocalDateTime.toInstant(ZoneOffset.UTC).toEpochMilli <= LocalDateTime.now().plusHours(1).toInstant(ZoneOffset.UTC).toEpochMilli
       })
-      logger.debug("New incoming events: " + workArray.map(_.id))
       workArray.map(item => (item.id.get,item.description, item.name))
         .foreach( (i:(Int,Option[String],String)) => {
           joinService.getTokens(i._1).onSuccess {
             case res =>
-              logger.debug("sendind to: " + res)
               _fcmService ! FcmService.SendMessage(
                 res.map(_.deviceToken),
                 FcmTextMessage(s"Описание:${i._2.getOrElse("")}",s"Остался 1 час до события ${i._3}",FcmMessage.REMIND).toJsonObject

@@ -2,6 +2,7 @@ package dao
 
 
 import dao.filters.EventFilters
+import slick.backend.StaticDatabaseConfig
 import slick.driver.MySQLDriver.api._
 import entities.db._
 import slick.jdbc.{GetResult, PositionedResult}
@@ -22,7 +23,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
 
   private val reportsTable = Tables.userReports
   override def create(r: MapEvent): Future[MapEvent] = {
-    val c = r.copy(reports = Some(0))
+    val c = r.copy(reports = Some(0), currentUsers = Some(0))
     val insert = (table returning table.map(_.id)).into((item, id) => item.copy(id = Some(id)))
     execute(insert += c)
   }
@@ -59,7 +60,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
 
   def getEvents(filters: EventFilters) = {
     val query = table
-    val newQuery = filters.createQueryWithFilter(query).result
+    val newQuery = filters.createQueryWithFilter(query).take(50).result
     execute(newQuery)
   }
 
@@ -96,6 +97,14 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
 //    }
 //  }
 
+  def incUsersNow(eventId: Int) = {
+    val query = sql"""UPDATE events set users_now = users_now + 1 where events.id = $eventId""".as[Int]
+    execute(query)
+  }
+  def decUsersNow(eventId: Int) = {
+    val query = sql"""UPDATE events set users_now = users_now - 1 where events.id = $eventId""".as[Int]
+    execute(query)
+  }
   def getCountUsersInEvent(idEvent: Option[Int]): Future[Int] = {
     if (idEvent.isEmpty) {
       Future.successful(0)
@@ -115,7 +124,10 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
     val query: Rep[Boolean] = reportsTable.filter(row => row.userId === idUser.get && row.eventId === idEvent.get).exists
     execute(query.result)
   }
-
+  def getUserReportsEventsId(idUser: Option[Int]): Future[Seq[Int]] = {
+    val query = for { report <- reportsTable if report.userId === idUser} yield report.eventId
+    execute(query.result)
+  }
   def getNearestEventsByDistance(distance: Double, longtitude: Double, latitude: Double, filters: EventFilters): Future[Seq[MapEvent]] = {
     implicit val getEventResult = GetResult(EventsDAO.mapResult)
     val distanceQuery = new DistanceQuery(distance, longtitude, latitude)
@@ -126,7 +138,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
   }
 }
 object EventsDAO {
-  def mapResult(r: PositionedResult): MapEvent = MapEvent(r.nextString, r.nextInt, r.nextDouble, r.nextDouble, r.nextTimestamp, r.nextInt, r.nextIntOption, r.nextStringOption, r.nextStringOption, r.nextBoolean, r.nextIntOption, r.nextIntOption)
+  def mapResult(r: PositionedResult): MapEvent = MapEvent(r.nextString, r.nextInt, r.nextDouble, r.nextDouble, r.nextTimestamp, r.nextInt, r.nextIntOption, r.nextIntOption(), r.nextStringOption, r.nextStringOption, r.nextBoolean, r.nextIntOption, r.nextIntOption)
 }
 class DistanceQuery(val distance: Double, val longtitude: Double, val latitude: Double) {
   private def longtitudeBetweenTuple = (longtitude - longtitudeDelta,longtitude + longtitudeDelta)

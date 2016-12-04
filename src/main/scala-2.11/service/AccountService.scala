@@ -93,14 +93,14 @@ class AccountService {
       case true => {
         userDAO.getByClientId(user.clientId).flatMap {
           case user: User =>
-            logger.info(s"your clientId already exists. Success!")
+//            logger.info(s"your clientId already exists. Success!")
             _authAccounts.put(user.clientId, user.copy())
             Future.successful(MyResponse.CODE_SUCCESS)
         } recoverWith {
           case exc: NoSuchElementException =>
             userDAO.create(user) map {
               case user =>
-                logger.info(s"your clientId is new. You registered. Success!")
+//                logger.info(s"your clientId is new. You registered. Success!")
                 _authAccounts.put(user.clientId, user.copy())
                 MyResponse.CODE_SUCCESS
             } recover {

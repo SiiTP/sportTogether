@@ -1,0 +1,2 @@
+для запуска нужно установить locust http://docs.locust.io/en/latest/installation.html
+pip install locustio

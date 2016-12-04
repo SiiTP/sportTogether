@@ -38,7 +38,6 @@ class MessageServiceActor(fcmServiceActor: ActorRef) extends Actor {
         case Some(actor) =>
           (actor ? JoinEventService.GetTokens(eventId)).onComplete {
             case Success(tokens) =>
-              logger.debug("tokens to send : " + tokens)
               fcmServiceActor ! FcmService.SendMessage(tokens.asInstanceOf[Seq[UserJoinEvent]].map(_.deviceToken).seq, msg.toJsonObject)
             case Failure(t) =>
               logger.debug("exception", t)
@@ -53,7 +52,6 @@ class MessageServiceActor(fcmServiceActor: ActorRef) extends Actor {
           (actor ? JoinEventService.GetCreatorToken(eventId)).onComplete {
             case Success(token) =>
               val tokenString = token.asInstanceOf[String]
-              logger.debug(s"creator token got $tokenString")
               fcmServiceActor ! FcmService.SendMessage(Seq(tokenString), msg.toJsonObject)
             case Failure(t) =>
               logger.debug("exception", t)

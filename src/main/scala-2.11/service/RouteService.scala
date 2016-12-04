@@ -31,7 +31,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef,
                         _fcmService: AskableActorRef,
                         _joinEventService: AskableActorRef,
                        _taskServiceActor: AskableActorRef) extends Actor with RouteService {
-  implicit lazy val timeouts = Timeout(10.seconds)
+  implicit lazy val timeouts = Timeout(15.seconds)
   def actorRefFactory = context
   def accountServiceRef: AskableActorRef = _accountServiceRef
   def eventsServiceRef = _eventService
@@ -165,7 +165,6 @@ trait RouteService extends HttpService {
     a match {
       case Success(result) =>
         val stringResult = getStringResponse(result)
-        logger.debug(stringResult)
         complete(stringResult)
       case Failure(t) =>
         logger.info(t.getMessage)
