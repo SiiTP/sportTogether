@@ -38,7 +38,7 @@ class AccountServiceActor(accountService: AccountService) extends Actor {
 
       future.onComplete {
         case Success(AccountResponse.CODE_AUTH_ALREADY) => s ! AccountResponse.responseAlreadyAuthorized.toJson.prettyPrint
-        case Success(MyResponse.CODE_SUCCESS)           => s ! AccountResponse.responseSuccess[User](accountService.isAuthorized(user.clientId)).toJson.prettyPrint
+        case Success(MyResponse.CODE_SUCCESS)           => s ! AccountResponse.responseSuccess[User](accountService.isAuthorized(user.clientId.get)).toJson.prettyPrint
         case Success(MyResponse.CODE_NOT_SUCCESS)       => s ! AccountResponse.responseNotSuccess().toJson.prettyPrint
         case Success(_)                                 => s ! AccountResponse.responseNotSuccess().toJson.prettyPrint
         case Failure(e) =>
@@ -74,7 +74,7 @@ class AccountService {
   }
 
   def authorize(user: User, token: String) : Future[Int] = {
-    val authorized: Option[User] = isAuthorized(user.clientId)
+    val authorized: Option[User] = isAuthorized(user.clientId.get)
     authorized match {
       case Some(user) => return Future.successful(MyResponse.CODE_SUCCESS)
       case None =>
@@ -91,17 +91,17 @@ class AccountService {
     }
     isRightTokenFuture.flatMap({
       case true => {
-        userDAO.getByClientId(user.clientId).flatMap {
+        userDAO.getByClientId(user.clientId.get).flatMap {
           case user: User =>
 //            logger.info(s"your clientId already exists. Success!")
-            _authAccounts.put(user.clientId, user.copy())
+            _authAccounts.put(user.clientId.get, user.copy())
             Future.successful(MyResponse.CODE_SUCCESS)
         } recoverWith {
           case exc: NoSuchElementException =>
             userDAO.create(user) map {
               case user =>
 //                logger.info(s"your clientId is new. You registered. Success!")
-                _authAccounts.put(user.clientId, user.copy())
+                _authAccounts.put(user.clientId.get, user.copy())
                 MyResponse.CODE_SUCCESS
             } recover {
               case exc: Throwable =>

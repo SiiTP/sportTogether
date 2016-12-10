@@ -51,7 +51,7 @@
 
     <logger name="slick.jdbc.JdbcBackend.statement" level="DEBUG"/>
 
-    <logger name="webApp" level="INFO">
+    <logger name="webApp" level="DEBUG">
         <appender-ref ref="STDOUT" />
         <appender-ref ref="ASYNC" />
     </logger>

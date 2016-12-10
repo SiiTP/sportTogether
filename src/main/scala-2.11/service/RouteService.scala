@@ -187,7 +187,7 @@ trait RouteService extends HttpService {
       } ~
       post {
         entity(as[UserAdapter]) { adapter =>
-          onComplete(sendAuthorize(User(clientId = clientId,1,name = adapter.name, avatar = adapter.avatar), token)) { tryAny =>
+          onComplete(sendAuthorize(User(clientId = Some(clientId),1,name = adapter.name, avatar = adapter.avatar), token)) { tryAny =>
 
             defaultResponse(tryAny, s"POST /auth  clientId: $clientId and token: $token")
           }
@@ -332,8 +332,8 @@ trait RouteService extends HttpService {
   def task(user: User) = pathPrefix("task") {
     get {
       parameter("eventId".as[Int]) { id =>
-        onComplete(sendGetEventTasks(id)) {
-          defaultResponse
+        onComplete(sendGetEventTasks(id)) { tryAny =>
+          defaultResponse(tryAny, s"GET tasks for id $id")
         }
       }
     } ~

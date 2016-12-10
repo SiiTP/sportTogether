@@ -83,7 +83,7 @@ class TaskServiceActor(taskService: TaskService) extends Actor {
     case GetEventTasks(eId) =>
       val sended = sender()
       val taskAdapter = new TaskAdapter()
-
+      logger.debug(s"tasks for id $eId")
       taskAdapter.toTaskAdapter(taskService.getEventTasks(eId)).onComplete {
         case Success(tasks) =>
           logger.debug(s"got tasks $tasks")
@@ -136,7 +136,7 @@ class TaskAdapter() {
         Future {
           seq.map(task => {
             val user = users.find(_.id == task.userId)
-            EventTaskAdapter(task.message, task.eventId, user,task.id)
+            EventTaskAdapter(task.message, task.eventId, user.map(u => u.copy(clientId = None, id = None)),task.id)
           })
         }
       })

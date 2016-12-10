@@ -85,16 +85,14 @@ object EventService {
         .zip(eventsDAO.getUserReportsEventsId(user.id))
         .zip(categoryDAO.getCategoriesByIds(seq.map(_.categoryId).distinct))
         .zip(userDao.getUsersByIds(seq.map(_.userId.getOrElse(0)).distinct))
-        .zip(tasksDao.getTasksByEventIds(seq.map(_.id.get)))
         .flatMap(
-        (s:((((Seq[MapEvent],Seq[Int]), Seq[MapCategory]),Seq[User]),Seq[EventTask])) => {
+        (s:(((Seq[MapEvent],Seq[Int]), Seq[MapCategory]),Seq[User])) => {
           Future {
             seq.map(mapEvent => {
-              val isJoined = s._1._1._1._1.exists(_.id == mapEvent.id)
-              val isReported = s._1._1._1._2.contains(mapEvent.id.get)
-              val category = s._1._1._2.find(_.id.get == mapEvent.categoryId)
-              val user = s._1._2.find(_.id == mapEvent.userId)
-              val tasks = s._2.filter(_.eventId == mapEvent.id)
+              val isJoined = s._1._1._1.exists(_.id == mapEvent.id)
+              val isReported = s._1._1._2.contains(mapEvent.id.get)
+              val category = s._1._2.find(_.id.get == mapEvent.categoryId)
+              val user = s._2.find(_.id == mapEvent.userId)
               MapEventAdapter(
                 mapEvent.name,
                 category.getOrElse(MapCategory("")),
@@ -106,11 +104,11 @@ object EventService {
                 mapEvent.reports,
                 mapEvent.description,
                 mapEvent.result,
-                Some(tasks),
+                None,
                 mapEvent.isEnded,
                 isJoined,
                 isReported,
-                user,
+                user.map(u=> u.copy(clientId = None,id = None)),
                 mapEvent.id
               )
             })

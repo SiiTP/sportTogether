@@ -33,7 +33,7 @@ class EventUsersDAOSpec extends FlatSpec with MockFactory with Matchers with Bef
   }
 
   "EventUsersDAO" should "create relation" in {
-    val user: User = awaitResult(userDAO.create(User("clientId", Roles.USER.getRoleId)))
+    val user: User = awaitResult(userDAO.create(User(Some("clientId"), Roles.USER.getRoleId)))
     val category: MapCategory = awaitResult(categoryDAO.create(MapCategory("cat")))
     val event: MapEvent = awaitResult(eventsDAO.create(MapEvent("name", category.id.getOrElse(0), 50.0, 50.0, new Timestamp(new java.util.Date().getTime), 0, Some(0), Some(0), Some("descr"), None, false, Some(user.id.getOrElse(0)))))
     1 + 1 shouldEqual 2

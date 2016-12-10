@@ -53,14 +53,14 @@ case class MapEventAdapter(
                             id: Option[Int] = None
                           ) {
   def toMapEvent : MapEvent = {
-    MapEvent(name,category.id.get, latitude, longtitude, date, maxPeople, reports, nowPeople, description, result, isEnded, user.getOrElse(User("",0,Some(0))).id, id)
+    MapEvent(name,category.id.get, latitude, longtitude, date, maxPeople, reports, nowPeople, description, result, isEnded, user.getOrElse(User(None,0,Some(0))).id, id)
   }
 }
 case class UserAdapter(name: Option[String], avatar: Option[String])
 case class MapEventResultAdapter(id: Int, result: Option[String])
 case class EventTask(message:String, eventId:Option[Int] = None, userId:Option[Int] = None, id:Option[Int] = None)
 case class EventTaskAdapter(message:String, eventId:Option[Int] = None, user:Option[User] = None, id:Option[Int] = None)
-case class User(clientId: String, role: Int, id: Option[Int] = None, name: Option[String] = None, avatar: Option[String] = None)
+case class User(clientId: Option[String], role: Int, id: Option[Int] = None, name: Option[String] = None, avatar: Option[String] = None)
 case class UserReport(userId: Int, eventId: Int)
 case class UserJoinEvent(userId: Int, deviceToken: String, eventId: Int)
 object EntitiesJsonProtocol extends DefaultJsonProtocol {
@@ -142,5 +142,5 @@ class Users(tag:Tag) extends Table[User](tag,"user"){
   def name = column[Option[String]]("name")
   def avatar = column[Option[String]]("avatar")
   def role = column[Int]("role")
-  def * = (clientId, role, id.?, name, avatar) <> (User.tupled,User.unapply)
+  def * = (clientId.?, role, id.?, name, avatar) <> (User.tupled,User.unapply)
 }
