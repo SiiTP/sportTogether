@@ -31,7 +31,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef,
                         _fcmService: AskableActorRef,
                         _joinEventService: AskableActorRef,
                        _taskServiceActor: AskableActorRef) extends Actor with RouteService {
-  implicit lazy val timeouts = Timeout(10.seconds)
+  implicit lazy val timeouts = Timeout(15.seconds)
   def actorRefFactory = context
   def accountServiceRef: AskableActorRef = _accountServiceRef
   def eventsServiceRef = _eventService
@@ -46,17 +46,17 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef,
   override def sendIsAuthorized(clientId: String) = {
     accountServiceRef ? IsAuthorized(clientId)
   }
-  override def sendAuthorize(clientId: String, token: String): Future[Any] = {
-    accountServiceRef ? Authorize(token, clientId)
+  override def sendAuthorize(user: User, token: String): Future[Any] = {
+    accountServiceRef ? Authorize(user, token)
   }
   override def sendUnauthorize(session: String): Future[Any] = {
     accountServiceRef ? Unauthorize(session)
   }
 
 
-  override def sendGetEvents(param: Map[String,List[String]]) = {
+  override def sendGetEvents(param: Map[String,List[String]],user: User) = {
 
-    eventsServiceRef ? EventService.GetEvents(new EventFilters(param))
+    eventsServiceRef ? EventService.GetEvents(new EventFilters(param),user)
   }
   def receive = handleMessages orElse runRoute(myRoute)
 
@@ -69,9 +69,9 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef,
             eventsServiceRef ? EventService.AddEvent(event,user)
 
   }
-  override def sendGetUserEvents(id:Int) = eventsServiceRef ? EventService.GetUserEvents(id)
+  override def sendGetUserEvents(id:Int,user: User) = eventsServiceRef ? EventService.GetUserEvents(id, user)
 
-  override def sendGetEvent(id: Int) = eventsServiceRef ? EventService.GetEvent(id)
+  override def sendGetEvent(id: Int,user: User) = eventsServiceRef ? EventService.GetEvent(id,user)
 
   override def sendCreateCategory(name: String): Future[Any] = _categoryService ? CategoryService.CreateCategory(name)
 
@@ -81,7 +81,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef,
   override def sendGetCategoriesByPartOfName(subname: String): Future[Any] = _categoryService ? CategoryService.GetCategoriesByPartOfName(subname)
 
 
-  override def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double, param: Map[String,List[String]]): Future[Any] = _eventService ? EventService.GetEventsByDistance(distance, longtitude, latitude, new EventFilters(param))
+  override def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double, param: Map[String,List[String]],user: User): Future[Any] = _eventService ? EventService.GetEventsByDistance(distance, longtitude, latitude, new EventFilters(param), user)
   override def sendUpdateEvents(event: MapEvent, user: User) = _eventService ? EventService.UpdateEvent(event, user)
   override def sendUpdateResult(event: MapEventResultAdapter, user: User) = _eventService ? EventService.UpdateEventResult(event, user)
   override def sendFinishEvent(id: Int, user: User): Future[Any] = _eventService ? EventService.FinishEvent(id, user)
@@ -103,7 +103,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef,
 object RouteServiceActor {
   case class RouteHello(msg: String)
 
-  case class Authorize(token: String, clientId: String)
+  case class Authorize(user: User, token: String)
   case class IsAuthorized(clientId: String)
   case class Unauthorize(clientId: String)
   case class GetAccount(clientId: String)
@@ -120,22 +120,22 @@ trait RouteService extends HttpService {
 
   def sendIsAuthorized(session: String): Future[Any]
 
-  def sendAuthorize(clientId: String, token: String): Future[Any]
+  def sendAuthorize(user: User, token: String): Future[Any]
 
   def sendUnauthorize(session: String): Future[Any]
 
   def sendAddEvent(event: MapEventAdapter, user: User): Future[Any]
 
-  def sendGetEvents(param: Map[String,List[String]]): Future[Any]
+  def sendGetEvents(param: Map[String,List[String]], user: User): Future[Any]
 
-  def sendGetUserEvents(id: Int): Future[Any]
+  def sendGetUserEvents(id: Int, user: User): Future[Any]
   def sendGetJoinedEvents(user: User): Future[Any]
 
   def sendGetEventsByCategoryId(id: Int): Future[Any]
 
-  def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double, param: Map[String,List[String]]): Future[Any]
+  def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double, param: Map[String,List[String]], user: User): Future[Any]
 
-  def sendGetEvent(id: Int): Future[Any]
+  def sendGetEvent(id: Int, user: User): Future[Any]
 
   def sendGetEventsByCategoryName(name: String): Future[Any]
 
@@ -165,7 +165,6 @@ trait RouteService extends HttpService {
     a match {
       case Success(result) =>
         val stringResult = getStringResponse(result)
-        logger.debug(stringResult)
         complete(stringResult)
       case Failure(t) =>
         logger.info(t.getMessage)
@@ -187,8 +186,11 @@ trait RouteService extends HttpService {
         }
       } ~
       post {
-        onComplete(sendAuthorize(clientId, token)) { tryAny =>
-          defaultResponse(tryAny, s"POST /auth  clientId: $clientId and token: $token")
+        entity(as[UserAdapter]) { adapter =>
+          onComplete(sendAuthorize(User(clientId = Some(clientId),1,name = adapter.name, avatar = adapter.avatar), token)) { tryAny =>
+
+            defaultResponse(tryAny, s"POST /auth  clientId: $clientId and token: $token")
+          }
         }
       }
   }
@@ -261,7 +263,7 @@ trait RouteService extends HttpService {
         } ~
         pathEnd {
           get {
-            onComplete(sendGetEvent(id)) { tryAny =>
+            onComplete(sendGetEvent(id, user)) { tryAny =>
                 defaultResponse(tryAny, s"GET event/$id")
             }
           } ~
@@ -294,7 +296,7 @@ trait RouteService extends HttpService {
     } ~
     pathEnd {
       get {
-        onComplete(sendGetEvents(params)) { tryAny =>
+        onComplete(sendGetEvents(params, user)) { tryAny =>
           defaultResponse(tryAny, s"GET event/")
         }
       } ~
@@ -308,7 +310,7 @@ trait RouteService extends HttpService {
     } ~
     pathPrefix("user") {
       get {
-        onComplete(sendGetUserEvents(user.id.get)) { tryAny =>
+        onComplete(sendGetUserEvents(user.id.get, user)) { tryAny =>
           defaultResponse(tryAny, "GET event/user")
         }
       }
@@ -319,7 +321,7 @@ trait RouteService extends HttpService {
           parameter("latitude".as[Double], "longtitude".as[Double]) {
             (latitude, longtitude) =>
               get {
-                onComplete(sendGetEventsDistance(distance, latitude, longtitude, params)) { tryAny =>
+                onComplete(sendGetEventsDistance(distance, latitude, longtitude, params, user)) { tryAny =>
                   defaultResponse(tryAny, s"GET event/distance/$distance Latittude $latitude and $longtitude")
                 }
               }
@@ -330,8 +332,8 @@ trait RouteService extends HttpService {
   def task(user: User) = pathPrefix("task") {
     get {
       parameter("eventId".as[Int]) { id =>
-        onComplete(sendGetEventTasks(id)) {
-          defaultResponse
+        onComplete(sendGetEventTasks(id)) { tryAny =>
+          defaultResponse(tryAny, s"GET tasks for id $id")
         }
       }
     } ~

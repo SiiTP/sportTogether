@@ -15,14 +15,20 @@ class TaskDao extends DatabaseDAO[EventTask,Int] {
     val insert = (table returning table.map(_.id)).into( (item,id) => item.copy(id = Some(id)))
     execute(insert += r)
   }
-  def createTasks(tasks: Seq[EventTask]) = {
-    execute(table ++= tasks)
+  def createTasks(tasks: Seq[EventTask]): Future[Seq[EventTask]] = {
+    execute((table returning table.map(_.id)).into((item, id) => item.copy(id = Some(id))) ++= tasks)
   }
   def getEventTasks(eId: Int) = {
     execute(table.filter(_.eventId === eId).result)
   }
+  def getTasksByEventIds(ids: Seq[Int]): Future[Seq[EventTask]] = {
+    execute(table.filter(_.eventId inSet ids).result)
+  }
+  def resetUserTasksInEvent(userId: Int, eId:Int) = {
+    val query = for {tasks <- table if tasks.eventId === eId && tasks.userId === userId} yield tasks.userId
+    execute(query.update(None))
+  }
   override def update(r: EventTask): Future[Int]  = {
-    println("GOTTA UPDATE " + r)
     val query = for { task <- table if task.id === r.id } yield (task.userId, task.message)
     val action = query.update((r.userId, r.message))
     execute(action)

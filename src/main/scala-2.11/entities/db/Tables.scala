@@ -26,6 +26,7 @@ case class MapEvent(
                      date: Timestamp,
                      maxPeople: Int = 0,
                      reports: Option[Int] = None,
+                     currentUsers: Option[Int] = None,
                      description: Option[String] = None,
                      result: Option[String] = None,
                      isEnded: Boolean = false,
@@ -48,16 +49,18 @@ case class MapEventAdapter(
                             isEnded: Boolean = false,
                             isJoined: Boolean = false,
                             isReported: Boolean = false,
-                            userId: Option[Int] = None,
+                            user: Option[User] = None,
                             id: Option[Int] = None
                           ) {
   def toMapEvent : MapEvent = {
-    MapEvent(name,category.id.get, latitude, longtitude, date, maxPeople, reports, description, result, isEnded, userId, id)
+    MapEvent(name,category.id.get, latitude, longtitude, date, maxPeople, reports, nowPeople, description, result, isEnded, user.getOrElse(User(None,0,Some(0))).id, id)
   }
 }
+case class UserAdapter(name: Option[String], avatar: Option[String])
 case class MapEventResultAdapter(id: Int, result: Option[String])
 case class EventTask(message:String, eventId:Option[Int] = None, userId:Option[Int] = None, id:Option[Int] = None)
-case class User(clientId: String, role: Int, id: Option[Int] = None)
+case class EventTaskAdapter(message:String, eventId:Option[Int] = None, user:Option[User] = None, id:Option[Int] = None)
+case class User(clientId: Option[String], role: Int, id: Option[Int] = None, name: Option[String] = None, avatar: Option[String] = None)
 case class UserReport(userId: Int, eventId: Int)
 case class UserJoinEvent(userId: Int, deviceToken: String, eventId: Int)
 object EntitiesJsonProtocol extends DefaultJsonProtocol {
@@ -67,14 +70,16 @@ object EntitiesJsonProtocol extends DefaultJsonProtocol {
     override def write(obj: Timestamp): JsValue = JsNumber(obj.getTime)
   }
 
-  implicit val userFormat = jsonFormat3(User)
+  implicit val userFormat = jsonFormat5(User)
+  implicit val userAdapterFormat = jsonFormat2(UserAdapter)
   implicit val tasksFormat = jsonFormat4(EventTask)
   implicit val eventUsersFormat = jsonFormat3(UserJoinEvent)
-  implicit val mapEventFormat = jsonFormat12(MapEvent)
+  implicit val mapEventFormat = jsonFormat13(MapEvent)
   implicit val mapEventResultAdapterFormat = jsonFormat2(MapEventResultAdapter)
   implicit val mapCategoryFormat = jsonFormat2(MapCategory)
   implicit val mapEventAdapterFormat = jsonFormat16(MapEventAdapter)
   implicit val userReportFormat = jsonFormat2(UserReport)
+  implicit val taskAdapterFormat = jsonFormat4(EventTaskAdapter)
 }
 
 class EventTasks(tag: Tag) extends Table[EventTask](tag,"tasks") {
@@ -121,18 +126,21 @@ class MapEvents(tag: Tag) extends Table[MapEvent](tag, "events") {
   def userId = column[Int]("user_id")
   def maxPeople = column[Int]("people")
   def report = column[Int]("reports")
+  def currentUsers = column[Int]("users_now")
   def isEnded = column[Boolean]("isEnded")
   def date = column[Timestamp]("date")
   def latitude = column[Double]("latitude")
   def longtitude = column[Double]("longtitude")
   def mapCategory = foreignKey("cat_fk", catId, Tables.categories)(_.id)
   def mapUser = foreignKey("user_fk", userId, Tables.users)(_.id)
-  def * = (name, catId, latitude, longtitude, date,  maxPeople, report.?, description, result, isEnded, userId.?, id.?) <> (MapEvent.tupled,MapEvent.unapply)
+  def * = (name, catId, latitude, longtitude, date,  maxPeople, report.?, currentUsers.?, description, result, isEnded, userId.?, id.?) <> (MapEvent.tupled,MapEvent.unapply)
 }
 
 class Users(tag:Tag) extends Table[User](tag,"user"){
   def id = column[Int]("id",O.PrimaryKey,O.AutoInc)
   def clientId = column[String]("clientId")
+  def name = column[Option[String]]("name")
+  def avatar = column[Option[String]]("avatar")
   def role = column[Int]("role")
-  def * = (clientId, role, id.?) <> (User.tupled,User.unapply)
+  def * = (clientId.?, role, id.?, name, avatar) <> (User.tupled,User.unapply)
 }

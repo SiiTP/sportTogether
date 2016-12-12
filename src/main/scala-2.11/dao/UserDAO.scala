@@ -25,6 +25,8 @@ class UserDAO extends DatabaseDAO[User,Int]{
   //TODO \find for unique fields
   override def get(id: Int): Future[User] = execute(table.filter(_.id === id).result.head)
   def getByClientId(clientId: String): Future[User] = execute(table.filter(_.clientId === clientId).result.head)
-
+  def getUsersByIds(ids: Seq[Int]): Future[Seq[User]] = {
+    execute(table.filter(_.id inSet ids).result)
+  }
   override def delete(r: User): Future[Int] = execute(table.filter(_.clientId === r.clientId).delete)
 }

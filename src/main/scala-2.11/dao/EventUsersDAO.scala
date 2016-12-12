@@ -34,13 +34,13 @@ class EventUsersDAO extends DatabaseDAO[UserJoinEvent, Int]{
   }
 
   def deleteFromEvent(eId: Int, userId: Int) = {
-    execute(table.filter(uie => uie.eventId === eId && uie.userId === userId).delete)
+    val q = table.filter(uie => uie.eventId === eId && uie.userId === userId).delete
+    execute(q)
   }
   def isAlreadyJoined(r: UserJoinEvent) = {
     val query = table.filter(uie => uie.eventId === r.eventId && uie.userId === r.userId).exists
     execute(query.result)
   }
-
   def isUserJoined(idUser: Option[Int], idEvent: Option[Int]): Future[Boolean] = {
     if (idUser.isEmpty && idEvent.isEmpty) {
       return Future.successful(false)

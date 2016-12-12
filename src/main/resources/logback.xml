@@ -45,9 +45,9 @@
         <appender-ref ref="SLICK_FILE" />
     </appender>
 
-    <logger name="slick" level="DEBUG">
-        <appender-ref ref="ASYNC_SLICK" />
-    </logger>
+    <!--<logger name="slick" level="DEBUG">-->
+        <!--<appender-ref ref="ASYNC_SLICK" />-->
+    <!--</logger>-->
 
     <logger name="slick.jdbc.JdbcBackend.statement" level="DEBUG"/>
 

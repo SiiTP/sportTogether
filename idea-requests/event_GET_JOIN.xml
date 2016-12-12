@@ -2,9 +2,9 @@
   <option name="biscuits">
     <list />
   </option>
-  <option name="httpMethod" value="POST" />
+  <option name="httpMethod" value="GET" />
   <option name="urlBase" value="http://localhost:8080" />
-  <option name="urlPath" value="/event" />
+  <option name="urlPath" value="/event/1/join" />
   <option name="headers">
     <list>
       <KeyValuePair>
@@ -30,12 +30,17 @@
     </list>
   </option>
   <option name="parameters">
-    <list />
+    <list>
+      <KeyValuePair>
+        <option name="key" value="token" />
+        <option name="value" value="azazaza" />
+      </KeyValuePair>
+    </list>
   </option>
   <option name="parametersEnabled" value="true" />
-  <option name="haveTextToSend" value="true" />
+  <option name="haveTextToSend" value="false" />
   <option name="haveFileToSend" value="false" />
   <option name="isFileUpload" value="false" />
-  <option name="textToSend" value="{&quot;name&quot;:&quot;testing&quot;, &quot;description&quot;: &quot;descr&quot;, &quot;category&quot;: {&quot;id&quot;: 1, &quot;name&quot;: &quot;test&quot;},&quot;longtitude&quot;:53,&quot;latitude&quot;:51, &quot;date&quot;:1495617650064, &quot;maxPeople&quot;:5, &quot;isEnded&quot;: false, &quot;isJoined&quot;: false, &quot;isReported&quot;: false, &quot;tasks&quot;: []} " />
+  <option name="textToSend" value="{   &quot;name&quot;: &quot;Ivan Semenchenko&quot; , &quot;avatar&quot;: &quot;netu&quot;}" />
   <option name="filesToSend" value="" />
 </RestClientRequest>
