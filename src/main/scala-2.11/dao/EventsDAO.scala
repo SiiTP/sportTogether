@@ -67,23 +67,12 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
   }
 
   def incUsersNow(eventId: Int) = {
-//    get(eventId).onComplete {
-//      case Success(event) =>
-//        val newCount = event.currentUsers.getOrElse(0) + 1
-//        logger.debug(" " + newCount)
-//        val future = update(event.copy(currentUsers = Some(newCount)))
-//        Await.result(future, Duration(3, duration.SECONDS))
-//      case Failure(e) =>
-//        logger.debug("error on update event " + e.getMessage)
-//    }
-//    val query = sql"""UPDATE events set users_now = users_now + 1 where events.id = $eventId""".as[Int]
-//    execute(query)
+     val query = sql"""UPDATE events set users_now = users_now + 1 where events.id = $eventId""".as[Int]
+     execute(query)
   }
   def decUsersNow(eventId: Int) = {
-//    get(eventId).onSuccess {
-//      case event =>
-//        update(event.copy(currentUsers = Some(event.currentUsers.getOrElse(0) - 1)))
-//    }
+    val query = sql"""UPDATE events set users_now = users_now - 1 where events.id = $eventId""".as[Int]
+    execute(query)
   }
   def getCountUsersInEvent(idEvent: Option[Int]): Future[Int] = {
     if (idEvent.isEmpty) {

@@ -43,7 +43,7 @@ class JoinEventService {
   def getJoinedUserToken(userId: Int, eId: Int): Future[String] = {
     eventUsersDAO.getById(eId).map(seq => seq.
       filter(userJoinEvent => userJoinEvent.userId == userId).
-      map(_.deviceToken).head)
+      map(_.deviceToken).head)//todo создателя может не быть
   }
   def isExist(event: MapEvent) = ???
   def isUserAlreadyJoined(user: User, eid: Int) = {

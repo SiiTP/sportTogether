@@ -108,7 +108,7 @@ object EventService {
                 mapEvent.isEnded,
                 isJoined,
                 isReported,
-                user.map(u=> u.copy(clientId = None,id = None)),
+                user.map(u=> u.copy(clientId = None)),
                 mapEvent.id
               )
             })

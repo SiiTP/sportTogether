@@ -17,8 +17,8 @@ class UserDAO extends DatabaseDAO[User,Int]{
   }
 
   override def update(r: User): Future[Int] = {
-    val query = table.filter(_.id === r.id)
-    val action = query.update(r)
+    val query = for{user <- table if user.id === r.id } yield (user.reminderTime,user.role)
+    val action = query.update((r.remindTime.get,r.role))
     execute(action)
   }
 

@@ -52,7 +52,9 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef,
   override def sendUnauthorize(session: String): Future[Any] = {
     accountServiceRef ? Unauthorize(session)
   }
-
+  override def sendUpdateUser(user: User): Future[Any] = {
+    accountServiceRef ? AccountService.UpdateUserInfo(user)
+  }
 
   override def sendGetEvents(param: Map[String,List[String]],user: User) = {
 
@@ -123,6 +125,7 @@ trait RouteService extends HttpService {
   def sendAuthorize(user: User, token: String): Future[Any]
 
   def sendUnauthorize(session: String): Future[Any]
+  def sendUpdateUser(user: User): Future[Any]
 
   def sendAddEvent(event: MapEventAdapter, user: User): Future[Any]
 
@@ -180,19 +183,19 @@ trait RouteService extends HttpService {
         defaultResponse(tryAny, s"GET /auth  clientId: $clientId and token: $token")
       }
     } ~
-      delete {
-        onComplete(sendUnauthorize(clientId)) { tryAny =>
-          defaultResponse(tryAny, s"DELETE /auth  clientId: $clientId and token: $token")
-        }
-      } ~
-      post {
-        entity(as[UserAdapter]) { adapter =>
-          onComplete(sendAuthorize(User(clientId = Some(clientId),1,name = adapter.name, avatar = adapter.avatar), token)) { tryAny =>
+    delete {
+      onComplete(sendUnauthorize(clientId)) { tryAny =>
+        defaultResponse(tryAny, s"DELETE /auth  clientId: $clientId and token: $token")
+      }
+    } ~
+    post {
+      entity(as[UserAdapter]) { adapter =>
+        onComplete(sendAuthorize(User(clientId = Some(clientId),1,name = adapter.name, avatar = adapter.avatar), token)) { tryAny =>
 
-            defaultResponse(tryAny, s"POST /auth  clientId: $clientId and token: $token")
-          }
+          defaultResponse(tryAny, s"POST /auth  clientId: $clientId and token: $token")
         }
       }
+    }
   }
 
   def category(user: User, params: Map[String,List[String]]) = pathPrefix("category") {
@@ -345,6 +348,15 @@ trait RouteService extends HttpService {
       }
     }
   }
+  def user(user: User) = pathPrefix("user"){
+    put {
+      entity(as[UserAdapter]) { adapter =>
+        onComplete(sendUpdateUser(user.copy(remindTime = adapter.remindTime))) { tryAny =>
+          defaultResponse(tryAny, s"PUT /user  clientId: ${user.clientId}")
+        }
+      }
+    }
+  }
   def testMessageSend(token: String): Future[Any]
   val gcm = path("gcm") {
     get {
@@ -377,7 +389,8 @@ trait RouteService extends HttpService {
             logger.debug(s"USER: $u")
             event(u,params) ~
             category(u, params) ~
-            task(u)
+            task(u) ~
+            user(u)
           case None =>
             logger.info(s"No auth for $clientId")
             complete(AccountResponse.responseNotAuthorized.toJson.prettyPrint)
