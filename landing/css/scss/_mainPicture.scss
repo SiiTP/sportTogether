@@ -1,0 +1,35 @@
+.mainPicture {
+  height: 100%;
+  max-height: 1080px;
+
+  &::after {
+    content: "";
+    background: url("/static/images/landing_base.jpg") no-repeat;
+    -moz-background-size: 100%; /* Firefox 3.6+ */
+    -webkit-background-size: 100%; /* Safari 3.1+ и Chrome 4.0+ */
+    -o-background-size: 100%; /* Opera 9.6+ */
+    background-size: 100%; /* Современные браузеры */
+    opacity: 0.75;
+    top: 64px;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    position: absolute;
+    z-index: -1;
+  }
+
+  &__slogan {
+    display: inline-block;
+    position: relative;
+    max-width: 700px;
+    margin: 0 auto;
+
+    &__header {
+      text-align: center;
+    }
+
+    &__content {
+      text-align: center;
+    }
+  }
+}

@@ -1,0 +1,46 @@
+@charset "UTF-8";
+html, body {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  height: 100%;
+  width: 100%; }
+
+#page {
+  height: 100%; }
+
+#content {
+  height: 100%; }
+
+.mainPicture {
+  height: 100%;
+  max-height: 1080px; }
+  .mainPicture::after {
+    content: "";
+    background: url("/static/images/landing_base.jpg") no-repeat;
+    -moz-background-size: 100%;
+    /* Firefox 3.6+ */
+    -webkit-background-size: 100%;
+    /* Safari 3.1+ и Chrome 4.0+ */
+    -o-background-size: 100%;
+    /* Opera 9.6+ */
+    background-size: 100%;
+    /* Современные браузеры */
+    opacity: 0.75;
+    top: 64px;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    position: absolute;
+    z-index: -1; }
+  .mainPicture__slogan {
+    display: inline-block;
+    position: relative;
+    max-width: 700px;
+    margin: 0 auto; }
+    .mainPicture__slogan__header {
+      text-align: center; }
+    .mainPicture__slogan__content {
+      text-align: center; }
+
+/*# sourceMappingURL=main.css.map */

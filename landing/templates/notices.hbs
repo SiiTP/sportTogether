@@ -1,0 +1,17 @@
+<div class="scrollbox notices">
+    {{#notices}}
+        <div class="notices__row">
+            <div class="notices__row__content">
+                {{message}}
+            </div>
+            <div class="notices__row__btns">
+                <div class="valign-wrapper" style="height: 36px">
+                    <a href="#!" class="red-text text-accent-3 material-icons icon-btn js-notice-delete" data-id="{{id}}">delete</a>
+                    &nbsp;
+                    &nbsp;
+                    <a href="{{link}}" class="green-text text-accent-3 material-icons icon-btn" data-id="{{id}}">forward</a>
+                </div>
+            </div>
+        </div>
+    {{/notices}}
+</div>

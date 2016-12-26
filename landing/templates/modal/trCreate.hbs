@@ -1,0 +1,47 @@
+<div class="modal-content">
+    <div class="title">
+        Создание транзакции
+        <span class="black-text">
+        {{#isEqual type 0}}
+            в дебет
+        {{/isEqual}}
+        {{#isEqual type 1}}
+            в кредит
+        {{/isEqual}}
+        </span>
+        проекта : <span class="black-text">{{projectName}}</span>
+    </div>
+    <div class="divider"></div>
+    <div class="row margin-top_medium margin-bottom_no">
+        <form class="col s12">
+            <div class="row">
+                <div class="input-field col s6">
+                    <input type="text" id="date" name="date" placeholder="Укажите дату">
+                    <label for="date">Дата</label>
+                </div>
+                <div class="input-field col s6">
+                    <input id="price" type="number" step="0.01" class="validate">
+                    <label for="price">Сумма</label>
+                </div>
+            </div>
+            <div class="row margin-bottom_no">
+                <div class="input-field col s12">
+                    <input id="comment" type="text" class="validate">
+                    <label for="comment">Комментарий</label>
+                </div>
+            </div>
+            <div class="row margin-bottom_no">
+                <div class="col s6">
+                    <p>
+                        <input type="checkbox" id="withAcception"/>
+                        <label for="withAcception">Подтвердить со своей стороны</label>
+                    </p>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="modal-footer">
+    <a href="#!" class="js-create modal-action modal-close waves-effect waves-green btn-flat green-text">Создать</a>
+    <a href="#!" class="js-close modal-action modal-close waves-effect waves-green btn-flat red-text">Отмена</a>
+</div>

@@ -1,0 +1,39 @@
+{{#models}}
+    <div class="table__common-row">
+        <!--<a href="#!" class="js-transaction-delete material-icons icon-btn red-text">delete_forever</a>-->
+        <!--<span class="text">&nbsp;&nbsp;&nbsp;</span>-->
+        <div class="table__offset table__offset_2btn">
+            {{#getBtnsStart status id}}{{/getBtnsStart}}
+        </div>
+        <div class="table__content__row">
+            <div class="table__content__row__cell t5">
+                {{#getStatusIcon status}}{{/getStatusIcon}}
+            </div>
+            <div class="table__content__row__cell t10">
+                {{date}}
+            </div>
+            <div class="table__content__row__cell right-align t12">
+                {{#moneyFormat getted}}{{/moneyFormat}}
+            </div>
+            <div class="table__content__row__cell right-align t12">
+                {{#moneyFormat given}}{{/moneyFormat}}
+            </div>
+            <div class="table__content__row__cell left-align t56">
+                {{comment}}
+            </div>
+            <div class="table__content__row__cell t5">
+                tr_{{id}}
+            </div>
+        </div>
+        <div class="table__offset table__offset_1btn">
+            <span class="text">&nbsp;</span>
+            <!--<a href="#chat#:{{id}}" class="js-chat-open material-icons icon-btn indigo-text">chat</a>-->
+            <!--<span class="text">&nbsp;&nbsp;&nbsp;</span>-->
+            {{#getBtnsEnd status id}}{{/getBtnsEnd}}
+        </div>
+    </div>
+    {{^}}
+    <div class="table__content__row__empty">
+        Нет транзакций
+    </div>
+{{/models}}
