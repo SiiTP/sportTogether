@@ -2,9 +2,10 @@ package service
 
 import akka.actor.{Actor, ActorRef}
 import com.typesafe.scalalogging.Logger
-import entities.db.MapEvent
+import entities.db.{MapEventAdapter, MapEvent}
 import messages.{FcmMessage, FcmTextMessage}
 import service.ReminderService.Add
+import spray.json.{JsString, JsNumber, JsObject}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
@@ -34,17 +35,23 @@ class ReminderService(_fcmService: ActorRef) extends Thread{
   override def run(): Unit = {
     while (!Thread.interrupted()) {
       joinService.getFutureEvents.onSuccess{
-      case (f:Seq[(Int, String,Int,String)]) =>
-        val updateArray = new ArrayBuffer[(Int, String,Int,String)]()
-        f.groupBy(_._1).values.foreach((values:Seq[(Int, String,Int,String)]) => {
+      case (f:Seq[(Int, String,Int,String, Double, Double)]) =>
+        val updateArray = new ArrayBuffer[(Int, String,Int,String, Double, Double)]()
+        f.groupBy(_._1).values.foreach((values:Seq[(Int, String,Int,String, Double, Double)]) => {
           val name = values.head._4
+          val jsObject = new JsObject(Map(
+            "id" -> JsNumber(values.head._1),
+            "name" -> JsString(values.head._4),
+            "latitude" -> JsNumber(values.head._5),
+            "longtitude" ->  JsNumber(values.head._6)
+          ))
           _fcmService ! FcmService.SendMessage(
             values.map(_._2),
-            FcmTextMessage(s"Скоро начнется событие: $name", "Уведомление о событии", FcmMessage.REMIND).toJsonObject
+            FcmTextMessage(s"Скоро начнется событие: $name", "Уведомление о событии", FcmMessage.REMIND,Some(jsObject)).toJsonObject
           )
           values.copyToBuffer(updateArray)
         })
-        joinService.updateNotified(updateArray.map((item:(Int, String,Int,String))=> {
+        joinService.updateNotified(updateArray.map((item:(Int, String,Int,String, Double, Double))=> {
           (item._1,item._3)
         }))
       }

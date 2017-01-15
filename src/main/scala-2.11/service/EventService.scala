@@ -1,7 +1,6 @@
 package service
 
 import akka.actor.{Actor, ActorRef}
-import akka.pattern.AskableActorRef
 import akka.util.Timeout
 import com.typesafe.scalalogging.Logger
 import dao._
@@ -10,13 +9,12 @@ import entities.db._
 import messages.{FcmMessage, FcmTextMessage}
 import response.EventResponse
 import service.EventService._
-
-import scala.concurrent.Future
+import spray.json._
+import entities.db.EntitiesJsonProtocol._;
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{Failure, Success}
-import entities.db.EntitiesJsonProtocol._
-
+import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.util.{Failure, Success}
 /**
   * Created by ivan on 25.09.16.
   */
@@ -51,8 +49,15 @@ class EventService {
   def getEventsAround(filters: EventFilters) = {
     eventsDAO.getEvents(filters)
   }
-  def finishEvent(id: Int, user: User) = {
-    eventsDAO.endEvent(id, user.id.getOrElse(0))
+  def finishEvent(id: Int, user: User): Future[MapEvent] = {
+    eventsDAO.get(id).andThen({
+      case Success(event) =>
+        eventsDAO.endEvent(id, user.id.getOrElse(0))
+        Future(event)
+      case Failure(e) =>
+        logger.debug("exception", e)
+        Future.failed(e)
+    })
   }
   def getUserEvents(id: Int) = eventsDAO.eventsByUserId(id)
   def getEvent(id: Int) = eventsDAO.get(id)
@@ -222,7 +227,7 @@ class EventServiceActor(eventService: EventService,
               case Success(updatedEvent) if updatedEvent > 0 =>
                 sended ! EventResponse.responseSuccess[MapEvent](None).toJson.prettyPrint
                 messageServiceActor ! MessageService.SendEventsTextMessage(event.id,
-                  FcmTextMessage("Итог события", event.result.getOrElse(""), FcmMessage.RESULT))
+                  FcmTextMessage( event.result.getOrElse(""),"Итог события", FcmMessage.RESULT, Some(mapEvent.toJson)))
               case Success(updatedEvent) if updatedEvent == 0 =>
                 sended ! EventResponse.notFoundError.toJson.prettyPrint
               case Failure(t) => sended ! EventResponse.unexpectedError.toJson.prettyPrint
@@ -250,7 +255,7 @@ class EventServiceActor(eventService: EventService,
           eventService.finishEvent(id, user).onComplete {
             case Success(result) =>
               sended ! EventResponse.responseSuccess(Some(UserReport(user.id.get,id))).toJson.prettyPrint
-              messageServiceActor ! MessageService.SendTokensTextMessage(tokens.map(_.deviceToken),FcmTextMessage("Событие отменено","Отмена события", FcmMessage.CANCELLED))
+              messageServiceActor ! MessageService.SendTokensTextMessage(tokens.map(_.deviceToken),FcmTextMessage(result.name,"Событие отменено", FcmMessage.CANCELLED))
             case Failure(t) =>
               logger.info("join event failure : ", t)
               sended ! EventResponse.alreadyReport.toJson.prettyPrint

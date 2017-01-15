@@ -1,21 +1,16 @@
 package service
 
-import akka.util.Timeout
-import dao.{UserDAO, EventsDAO}
-
-import scala.None
-import scala.util.{Failure, Success}
-import akka.actor.{ActorRef, Actor}
-import akka.actor.Actor.Receive
+import akka.actor.{Actor, ActorRef}
 import akka.pattern.AskableActorRef
+import akka.util.Timeout
 import com.typesafe.scalalogging.Logger
 import entities.db.UserJoinEvent
 import messages.FcmTextMessage
-import service.MessageService.{SendTokensTextMessage, InitJoinEventService, SendEventsTextMessageToCreator, SendEventsTextMessage}
-import spray.json.{JsString, JsNumber, JsObject}
-import scala.concurrent.duration._
-import spray.json.DefaultJsonProtocol._
+import service.MessageService.{InitJoinEventService, SendEventsTextMessage, SendEventsTextMessageToCreator, SendTokensTextMessage}
+
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.util.{Failure, Success}
 
 class MessageService {
 
@@ -24,7 +19,6 @@ object MessageService {
   case class SendEventsTextMessage(eventId: Int, textMessage: FcmTextMessage)
   case class SendTokensTextMessage(tokens: Seq[String], textMessage: FcmTextMessage)
   case class SendEventsTextMessageToCreator(eventId: Int, textMessage: FcmTextMessage)
-
   case class InitJoinEventService(jesActor: AskableActorRef)
 }
 class MessageServiceActor(fcmServiceActor: ActorRef) extends Actor {

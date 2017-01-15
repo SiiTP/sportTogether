@@ -9,8 +9,8 @@ import messages.{FcmMessage, FcmTextMessage}
 import response.JoinServiceResponse
 import service.JoinEventService._
 import entities.db.EntitiesJsonProtocol._
-import spray.json.{JsNumber, JsObject, JsString}
-
+import spray.json._
+import entities.db.EntitiesJsonProtocol._
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -105,6 +105,7 @@ class SenderHelper(sender: ActorRef) {
 }
 class JoinEventServiceActor(service: JoinEventService, messageServiceActor: ActorRef) extends Actor {
   private val logger = Logger("webApp")
+  private val eventService = new EventService()
   override def receive: Receive = {
     case AddUserToEvent(ev, user, token) =>
       val sended = new SenderHelper(sender())
@@ -157,8 +158,19 @@ class JoinEventServiceActor(service: JoinEventService, messageServiceActor: Acto
             sended ! JoinServiceResponse.userNotFoundInEvent.toJson.prettyPrint
           } else {
             sended ! JoinServiceResponse.responseSuccess(Some(s"Событий покинуто: $result")).toJson.prettyPrint
-            messageServiceActor ! MessageService.SendEventsTextMessageToCreator(eId,
-              FcmTextMessage(s"Пользователь ${user.clientId} покинл событие",s"Пользователь покинул событие $eId",FcmMessage.USER_LEFT))
+            eventService.getEvent(eId).andThen{
+              case optEvent =>
+                optEvent match {
+                  case Success(event) =>
+                    messageServiceActor ! MessageService.SendEventsTextMessageToCreator(eId,
+                      FcmTextMessage(s"Пользователь ${user.name.getOrElse("")} покинул событие",s"Пользователь покинул событие ${event.name}",FcmMessage.USER_LEFT, Some(event.toJson)))
+                  case Failure(e) =>
+                    logger.debug("exception leave event:", e)
+                    sended ! JoinServiceResponse.unexpectedError(e.getMessage).toJson.prettyPrint
+                }
+
+            }
+
           }
         case Failure(e) => {
           logger.debug("exception leave event:", e)

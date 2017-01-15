@@ -61,12 +61,12 @@ class EventUsersDAO extends DatabaseDAO[UserJoinEvent, Int]{
     execute(seq.result)
   }
 
-  def getEvents(): Future[Seq[(Int, String,Int,String)]] = {
+  def getEvents(): Future[Seq[(Int, String,Int,String, Double, Double)]] = {
     implicit val getEventResult = GetResult[MapEvent](EventsDAO.mapResult)
     val date = System.currentTimeMillis() / 1000
-    val query = sql"""SELECT eu.event_id, eu.device_token, eu.user_id, e.name from events e
+    val query = sql"""SELECT eu.event_id, eu.device_token, eu.user_id, e.name, e.latitude, e.longtitude from events e
            join event_users eu on eu.event_id=e.id
-           join user u on u.id=eu.user_id where TIMESTAMPDIFF(SECOND,u.remind_time,e.date) < $date and eu.notified=FALSE """.as[(Int, String,Int,String)]
+           join user u on u.id=eu.user_id where TIMESTAMPDIFF(SECOND,u.remind_time,e.date) < $date and eu.notified=FALSE """.as[(Int, String,Int,String, Double, Double)]
     execute(query)
   }
 
