@@ -1,7 +1,7 @@
 import AssemblyKeys._  // put this at the top of the file
 name := "sportTogether"
 
-version := "1.4.8"
+version := "1.4.9"
 
 scalaVersion := "2.11.8"
 
@@ -43,6 +43,7 @@ libraryDependencies ++= {
     "org.jetbrains"                 %   "annotations"           % "15.0",
     "mysql"                         %   "mysql-connector-java"  % "5.1.36",
     "com.typesafe.slick"            %   "slick_2.11"            % "3.1.1",
+    "com.typesafe.slick"            %   "slick-hikaricp_2.11"   % "3.1.1",
     "net.debasishg"                 %%  "redisclient"           % "3.3"
   )
 }
