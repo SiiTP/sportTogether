@@ -1,9 +1,12 @@
 package dao
 
 
+import java.sql.Timestamp
+
 import com.typesafe.scalalogging.Logger
 import entities.db._
 import slick.driver.MySQLDriver.api._
+import slick.jdbc.GetResult
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -13,7 +16,8 @@ import scala.language.postfixOps
   */
 class EventUsersDAO extends DatabaseDAO[UserJoinEvent, Int]{
   private val table = Tables.eventUsers
-
+  private val events = Tables.events
+  private val users = Tables.users
 
   private val tableEvent = Tables.events
   private val logger = Logger("webApp")
@@ -55,6 +59,23 @@ class EventUsersDAO extends DatabaseDAO[UserJoinEvent, Int]{
       (e, rel) <- tableEvent join table on (_.id === _.eventId ) if rel.userId === idUser
     } yield e
     execute(seq.result)
+  }
+
+  def getEvents(): Future[Seq[(Int, String,Int,String)]] = {
+    implicit val getEventResult = GetResult[MapEvent](EventsDAO.mapResult)
+    val date = System.currentTimeMillis() / 1000
+    val query = sql"""SELECT eu.event_id, eu.device_token, eu.user_id, e.name from events e
+           join event_users eu on eu.event_id=e.id
+           join user u on u.id=eu.user_id where TIMESTAMPDIFF(SECOND,u.remind_time,e.date) < $date and eu.notified=FALSE """.as[(Int, String,Int,String)]
+    execute(query)
+  }
+
+  def updateNotified(eventsId: Seq[(Int,Int)]) = {
+    val queries = eventsId.map((item:(Int,Int))=> {
+      val query = for {uie <- table if uie.eventId === item._1 && uie.userId === item._2} yield uie.notified
+      query.update(true)
+    })
+    execute(DBIO.sequence(queries))
   }
 
   override def get(r: Int): Future[UserJoinEvent] = ???

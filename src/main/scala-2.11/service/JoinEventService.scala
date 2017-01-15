@@ -3,7 +3,7 @@ package service
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.AskableActorRef
 import com.typesafe.scalalogging.Logger
-import dao.{TaskDao, EventUsersDAO, EventsDAO}
+import dao.{UserDAO, TaskDao, EventUsersDAO, EventsDAO}
 import entities.db.{MapEvent, MapEventAdapter, User, UserJoinEvent}
 import messages.{FcmMessage, FcmTextMessage}
 import response.JoinServiceResponse
@@ -22,7 +22,6 @@ class JoinEventService {
   private val eventUsersDAO = new EventUsersDAO()
   private val eventsDAO = new EventsDAO()
   private val tasksDao = new TaskDao()
-
   //if store in database replace with dao
   def add(userJoinEvent: UserJoinEvent) = {
     logger.debug(s"add ${userJoinEvent.userId} to event ${userJoinEvent.eventId} , token:${userJoinEvent.deviceToken}")
@@ -40,6 +39,8 @@ class JoinEventService {
   def getEventsOfUserJoined(user: User): Future[Seq[MapEventAdapter]] = {
     EventService.toAdapterForm(eventUsersDAO.getEventsOfUserJoined(user), user)
   }
+  def getFutureEvents = eventUsersDAO.getEvents()
+  def updateNotified(items: Seq[(Int,Int)]) = eventUsersDAO.updateNotified(items)
   def getJoinedUserToken(userId: Int, eId: Int): Future[String] = {
     eventUsersDAO.getById(eId).map(seq => seq.
       filter(userJoinEvent => userJoinEvent.userId == userId).

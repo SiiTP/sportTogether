@@ -64,7 +64,7 @@ case class User(clientId: Option[String], role: Int, id: Option[Int] = None, nam
                 avatar: Option[String] = None,
                 remindTime: Option[Timestamp] = Some(new Timestamp(1000 * 60 * 60)))//1 hour
 case class UserReport(userId: Int, eventId: Int)
-case class UserJoinEvent(userId: Int, deviceToken: String, eventId: Int)
+case class UserJoinEvent(userId: Int, deviceToken: String, eventId: Int, notified: Option[Boolean] = Some(false))
 object EntitiesJsonProtocol extends DefaultJsonProtocol {
 
   implicit  object TimeJsonProtocol extends RootJsonFormat[Timestamp] {
@@ -75,7 +75,7 @@ object EntitiesJsonProtocol extends DefaultJsonProtocol {
   implicit val userFormat = jsonFormat6(User)
   implicit val userAdapterFormat = jsonFormat3(UserAdapter)
   implicit val tasksFormat = jsonFormat4(EventTask)
-  implicit val eventUsersFormat = jsonFormat3(UserJoinEvent)
+  implicit val eventUsersFormat = jsonFormat4(UserJoinEvent)
   implicit val mapEventFormat = jsonFormat13(MapEvent)
   implicit val mapEventResultAdapterFormat = jsonFormat2(MapEventResultAdapter)
   implicit val mapCategoryFormat = jsonFormat2(MapCategory)
@@ -97,10 +97,11 @@ class UsersInEvents(tag: Tag) extends Table[UserJoinEvent](tag,"event_users") {
   def userId = column[Int]("user_id")
   def eventId = column[Int]("event_id")
   def deviceToken = column[String]("device_token")
+  def notified = column[Boolean]("notified")
   def userFK = foreignKey("user_UserInEvent_FK",userId,Tables.users)(_.id)
   def eventFK = foreignKey("event_UserInEvent_FK",eventId,Tables.events)(_.id, onDelete=ForeignKeyAction.Cascade)
   def uniqueIdxs = index("uniq_user_in_event",(userId,eventId),unique = true)
-  def * = (userId, deviceToken, eventId) <> (UserJoinEvent.tupled, UserJoinEvent.unapply)
+  def * = (userId, deviceToken, eventId, notified.?) <> (UserJoinEvent.tupled, UserJoinEvent.unapply)
 }
 
 class UserReports(tag: Tag) extends Table[UserReport](tag,"user_reports") {

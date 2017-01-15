@@ -1,20 +1,14 @@
 package service
 
-import java.sql.Timestamp
-import java.time.{ZoneOffset, LocalDateTime, Period, Instant}
-import java.util.concurrent.CopyOnWriteArrayList
-
-import akka.actor.{ActorRef, Actor}
-import akka.actor.Actor.Receive
-import akka.pattern.AskableActorRef
+import akka.actor.{Actor, ActorRef}
 import com.typesafe.scalalogging.Logger
 import entities.db.MapEvent
 import messages.{FcmMessage, FcmTextMessage}
 import service.ReminderService.Add
-import spray.json.{JsString, JsObject}
-import scala.concurrent.ExecutionContext.Implicits.global
+
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.parallel.immutable
-import scala.concurrent.duration.Duration
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
   * Created by ivan on 17.10.16.
@@ -39,21 +33,21 @@ class ReminderService(_fcmService: ActorRef) extends Thread{
 
   override def run(): Unit = {
     while (!Thread.interrupted()) {
-      val workArray = array.filter(event => {
-        event.date.toLocalDateTime.toInstant(ZoneOffset.UTC).toEpochMilli <= LocalDateTime.now().plusHours(1).toInstant(ZoneOffset.UTC).toEpochMilli
-      })
-      workArray.map(item => (item.id.get,item.description, item.name))
-        .foreach( (i:(Int,Option[String],String)) => {
-          joinService.getTokens(i._1).onSuccess {
-            case res =>
-              _fcmService ! FcmService.SendMessage(
-                res.map(_.deviceToken),
-                FcmTextMessage(s"Описание:${i._2.getOrElse("")}",s"Остался 1 час до события ${i._3}",FcmMessage.REMIND).toJsonObject
-              )
-          }
-        }
-      )
-      array = array.filterNot(item => workArray.exists(_.id.eq(item.id)))
+      joinService.getFutureEvents.onSuccess{
+      case (f:Seq[(Int, String,Int,String)]) =>
+        val updateArray = new ArrayBuffer[(Int, String,Int,String)]()
+        f.groupBy(_._1).values.foreach((values:Seq[(Int, String,Int,String)]) => {
+          val name = values.head._4
+          _fcmService ! FcmService.SendMessage(
+            values.map(_._2),
+            FcmTextMessage(s"Скоро начнется событие: $name", "Уведомление о событии", FcmMessage.REMIND).toJsonObject
+          )
+          values.copyToBuffer(updateArray)
+        })
+        joinService.updateNotified(updateArray.map((item:(Int, String,Int,String))=> {
+          (item._1,item._3)
+        }))
+      }
 
       Thread.sleep(1000 * 30) //0.5 minute
     }

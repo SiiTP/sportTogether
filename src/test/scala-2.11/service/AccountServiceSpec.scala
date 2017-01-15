@@ -6,6 +6,7 @@ import akka.actor.{ActorSystem, Props}
 import akka.pattern.AskableActorRef
 import response.AccountResponse
 import service.RouteServiceActor.{Authorize, IsAuthorized, Unauthorize}
+import service.support.RedisConfig
 
 import scala.concurrent.duration._
 import akka.util.Timeout
@@ -39,7 +40,7 @@ class AccountServiceSpec extends FlatSpec with Matchers with BeforeAndAfter with
   dbHelper.init(getClass.getResourceAsStream("../application_test.conf"))
   val userDAO = new UserDAO
 
-  val accountService = new AccountService()
+  val accountService = new AccountService(RedisConfig.createConfig("../application_test.conf"))
   val accountServiceActor : AskableActorRef = system.actorOf(Props(classOf[AccountServiceActor], accountService), "accountService")
 
   "The account service" should "answer correctly to not authorized user" in {

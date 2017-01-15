@@ -6,6 +6,7 @@ import com.typesafe.scalalogging.Logger
 import entities.db.{DatabaseExecutor, DatabaseHelper}
 import response.MyResponse
 import service._
+import service.support.RedisConfig
 import spray.can.Http
 
 import scala.concurrent.duration._
@@ -53,7 +54,8 @@ object App extends MyResponse {
     val taskServiceActor = system.actorOf(Props(classOf[TaskServiceActor], taskService), "taskService")
     val eventService = new EventService()
     val eventServiceActor = system.actorOf(Props(classOf[EventServiceActor],eventService, reminderServiceActor, categoryService, messageServiceActor, joinService, taskService),"eventService")
-    val accountService = new AccountService()
+    val redisClientPool = RedisConfig.createConfig("application.conf")
+    val accountService = new AccountService(redisClientPool)
     val accountServiceActor = system.actorOf(Props(classOf[AccountServiceActor], accountService), "accountService")
     val routeServiceActor = system.actorOf(Props(classOf[RouteServiceActor],
       accountServiceActor,eventServiceActor,categoryServiceActor,

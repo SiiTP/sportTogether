@@ -3,12 +3,14 @@ package service
 import java.util
 
 import akka.actor.{Actor, ActorRef}
+import com.redis.RedisClientPool
 import dao.UserDAO
 import entities.db.{UserAdapter, EntitiesJsonProtocol, Roles, User}
 import org.jetbrains.annotations.TestOnly
 import response.{AccountResponse, MyResponse}
 import service.AccountService.{UpdateUserInfo, AccountHello}
 import service.RouteServiceActor.{Authorize, IsAuthorized, RouteHello, Unauthorize}
+import service.support.RedisSupportService
 import spray.json._
 import EntitiesJsonProtocol._
 import com.typesafe.scalalogging.Logger
@@ -73,19 +75,24 @@ object AccountService {
   case class UpdateUserInfo(user: User)
 }
 
-class AccountService {
+class AccountService(_redisClientPool: RedisClientPool) {
   val logger = Logger("webApp")
 
   lazy val userDAO = new UserDAO()
-  private val _authAccounts = new util.HashMap[String, User]
+//  private val _authAccounts = new util.HashMap[String,User]()
+  private val _authAccounts = new RedisSupportService(_redisClientPool)
 
   @TestOnly
   def authAccounts() = _authAccounts
 
   def isAuthorized(session : String): Option[User] = {
-    if (_authAccounts.containsKey(session))
-      Some(_authAccounts.get(session))
-    else
+    if (_authAccounts.containsKey(session)) {
+      val userJson : Option[String] =  _authAccounts.get(session)
+      userJson match {
+        case Some(userJsonString) => Some(userJsonString.parseJson.convertTo[User])
+        case None => None
+      }
+    } else
       None
   }
 
@@ -106,18 +113,20 @@ class AccountService {
         false
     }
     isRightTokenFuture.flatMap({
-      case true => {
+      case true =>
         userDAO.getByClientId(user.clientId.get).flatMap {
-          case user: User =>
-//            logger.info(s"your clientId already exists. Success!")
-            _authAccounts.put(user.clientId.get, user.copy())
+          case storedUser: User =>
+            logger.info(s"your clientId already exists. Success!")
+            val copiedUser = user.copy(id = storedUser.id)
+            userDAO.update(copiedUser)
+            _authAccounts.put(user.clientId.get, copiedUser.toJson.prettyPrint)
             Future.successful(MyResponse.CODE_SUCCESS)
         } recoverWith {
           case exc: NoSuchElementException =>
             userDAO.create(user) map {
               case user =>
-//                logger.info(s"your clientId is new. You registered. Success!")
-                _authAccounts.put(user.clientId.get, user.copy())
+                logger.info(s"your clientId is new. You registered. Success!")
+                _authAccounts.put(user.clientId.get, user.copy().toJson.prettyPrint)
                 MyResponse.CODE_SUCCESS
             } recover {
               case exc: Throwable =>
@@ -129,7 +138,6 @@ class AccountService {
             exc.printStackTrace()
             Future.successful(MyResponse.CODE_NOT_SUCCESS)
         }
-      }
       case false => Future.successful(MyResponse.CODE_NOT_SUCCESS)
     })
   }
@@ -152,7 +160,7 @@ class AccountService {
     userDAO.get(id)
   }
   def updateSessionUser(user: User) = {
-    _authAccounts.put(user.clientId.get,user)
+    _authAccounts.put(user.clientId.get,user.toJson.prettyPrint)
   }
   def updateUser(user: User) = {
     userDAO.update(user)
