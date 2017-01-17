@@ -1,24 +1,18 @@
 .slogan-container {
-  height: 100%;
-
-  &::after {
-    min-width: $min-width;
-    content: "";
-    background: url("/static/images/sport1.jpg") no-repeat;
-    -moz-background-size: 100%; /* Firefox 3.6+ */
-    -webkit-background-size: 100%; /* Safari 3.1+ и Chrome 4.0+ */
-    -o-background-size: 100%; /* Opera 9.6+ */
-    background-size: 100%; /* Современные браузеры */
-    opacity: 0.75;
-    top: 48px;
-    left: 0;
-    bottom: 0;
-    right: 0;
-    position: absolute;
-    z-index: -1;
-  }
+  height: calc(100% - 64px);
+  min-height: 600px;
+  width: 100%;
+  background: url("/static/images/sport1.jpg") no-repeat;
+  background-size: cover;
+  background-position: center;
 
   &__slogan {
+    box-sizing: border-box;
+    max-width: 700px;
+    min-width: 400px;
+    margin: 0 auto;
+    padding-top: 30px;
+
     &__image {
       display: block;
       margin: 0 auto;
@@ -26,19 +20,27 @@
       width: auto;
     }
 
-    max-width: 700px;
-    min-width: 400px;
-    margin: 30px auto 0;
-
     &__header {
       text-align: center;
     }
 
     &__content {
-      height: 50px;
       padding: 0;
       margin: 0;
       text-align: center;
     }
+
+    &__google-play {
+      width: 200px;
+      display: block;
+      box-sizing: border-box;
+      margin: 0 auto;
+
+      &__image {
+        box-sizing: border-box;
+        width: 200px;
+      }
+    }
+
   }
 }
