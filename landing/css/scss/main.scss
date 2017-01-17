@@ -1,9 +1,12 @@
+$min-width: 500px;
+
 html, body {
   margin: 0;
   padding: 0;
   border: 0;
   height: 100%;
   width: 100%;
+  min-width: $min-width;
 }
 
 #page {
@@ -14,4 +17,10 @@ html, body {
   height: 100%;
 }
 
-@import "mainPicture";
+.centerAlign {
+  display: inline-block;
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
+@import "slogan-container";

@@ -4,7 +4,8 @@ html, body {
   padding: 0;
   border: 0;
   height: 100%;
-  width: 100%; }
+  width: 100%;
+  min-width: 500px; }
 
 #page {
   height: 100%; }
@@ -12,12 +13,17 @@ html, body {
 #content {
   height: 100%; }
 
-.mainPicture {
-  height: 100%;
-  max-height: 1080px; }
-  .mainPicture::after {
+.centerAlign {
+  display: inline-block;
+  box-sizing: border-box;
+  margin: 0 auto; }
+
+.slogan-container {
+  height: 100%; }
+  .slogan-container::after {
+    min-width: 500px;
     content: "";
-    background: url("/static/images/landing_base.jpg") no-repeat;
+    background: url("/static/images/sport1.jpg") no-repeat;
     -moz-background-size: 100%;
     /* Firefox 3.6+ */
     -webkit-background-size: 100%;
@@ -27,20 +33,27 @@ html, body {
     background-size: 100%;
     /* Современные браузеры */
     opacity: 0.75;
-    top: 64px;
+    top: 48px;
     left: 0;
     bottom: 0;
     right: 0;
     position: absolute;
     z-index: -1; }
-  .mainPicture__slogan {
-    display: inline-block;
-    position: relative;
+  .slogan-container__slogan {
     max-width: 700px;
-    margin: 0 auto; }
-    .mainPicture__slogan__header {
+    min-width: 400px;
+    margin: 30px auto 0; }
+    .slogan-container__slogan__image {
+      display: block;
+      margin: 0 auto;
+      height: 90px;
+      width: auto; }
+    .slogan-container__slogan__header {
       text-align: center; }
-    .mainPicture__slogan__content {
+    .slogan-container__slogan__content {
+      height: 50px;
+      padding: 0;
+      margin: 0;
       text-align: center; }
 
 /*# sourceMappingURL=main.css.map */
