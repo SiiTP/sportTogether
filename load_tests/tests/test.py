@@ -4,31 +4,29 @@ import random
 from locust import HttpLocust, TaskSet, task
 
 from randoms.RandomEntities import random_user, random_event
-from randoms.RandomUtils import random_header_dict
+from randoms.RandomUtils import random_header_dict, random_url_get_events
 
 
 class MyTaskSet(TaskSet):
-
     def __init__(self, parent):
         super(MyTaskSet, self).__init__(parent)
         self.user = random_user()
         self.headers = random_header_dict()
 
     def on_start(self):
-        #rint(json.dumps(self.user.__dict__))
-        self.client.post("/auth",json=self.user.__dict__,
-                            headers=self.headers)
+        self.client.post("/auth", json=self.user.__dict__,
+                         headers=self.headers)
 
     @task(10)
     def index(self):
-         self.client.get(headers=self.headers,
-                             url="/event/distance/46.462412050523774?latitude=55.748534790699274&longtitude=37.683468237519264")
-
-    @task(30)
-    def index(self):
-        url = "/event/" + str(random.randint(1,3250))
         self.client.get(headers=self.headers,
-                         url=url)
+                        url=random_url_get_events())
+
+    # @task(30)
+    # def index(self):
+    #     url = "/event/" + str(random.randint(1, 100))
+    #     self.client.get(headers=self.headers,
+    #                     url=url)
 
     @task(10)
     def index(self):
@@ -36,9 +34,9 @@ class MyTaskSet(TaskSet):
         self.client.get(headers=self.headers,
                         url=url)
 
-    @task(2)
+    @task(4)
     def about(self):
-         self.client.post("/event",json=random_event().to_dict(), headers = self.headers)
+        self.client.post("/event", json=random_event().to_dict(), headers=self.headers)
 
 
 class MyLocust(HttpLocust):
