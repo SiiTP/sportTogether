@@ -83,7 +83,14 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef,
   override def sendGetCategoriesByPartOfName(subname: String): Future[Any] = _categoryService ? CategoryService.GetCategoriesByPartOfName(subname)
 
 
-  override def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double, param: Map[String,List[String]],user: User): Future[Any] = _eventService ? EventService.GetEventsByDistance(distance, longtitude, latitude, new EventFilters(param), user)
+  override def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double,
+                                     param: Map[String,List[String]],user: User): Future[Any] = {
+    _eventService ? EventService.GetEventsByDistance(distance, longtitude, latitude, new EventFilters(param), user)
+  }
+  override def sendGetSiteEventsDistance(distance: Double, latitude: Double, longtitude: Double,
+                                         param: Map[String,List[String]]): Future[Any] = {
+    _eventService ? EventService.GetEventsByDistanceSite(distance, longtitude, latitude, new EventFilters(param))
+  }
   override def sendUpdateEvents(event: MapEvent, user: User) = _eventService ? EventService.UpdateEvent(event, user)
   override def sendUpdateResult(event: MapEventResultAdapter, user: User) = _eventService ? EventService.UpdateEventResult(event, user)
   override def sendFinishEvent(id: Int, user: User): Future[Any] = _eventService ? EventService.FinishEvent(id, user)
@@ -137,6 +144,7 @@ trait RouteService extends HttpService {
   def sendGetEventsByCategoryId(id: Int): Future[Any]
 
   def sendGetEventsDistance(distance: Double, latitude: Double, longtitude: Double, param: Map[String,List[String]], user: User): Future[Any]
+  def sendGetSiteEventsDistance(distance: Double, latitude: Double, longtitude: Double, param: Map[String,List[String]]): Future[Any]
 
   def sendGetEvent(id: Int, user: User): Future[Any]
 
@@ -358,14 +366,24 @@ trait RouteService extends HttpService {
     }
   }
   def testMessageSend(token: String): Future[Any]
-  val gcm = path("gcm") {
-    get {
-      onComplete(testMessageSend("eip4vuQhWQU:APA91bEFEEZKOAUBoKwa3RsjU7oTcKTVbWdZbqZ5JB4d5vjJH7H8kFN3hKWKuOovhShpLVt6asIsiWVZdLZvsDHAraftWgltTNMixG7TmQwphH-vjQ6TVMC-QxZs6FZBM8tCJ7O2Qa8v")) {
-        case Success(result) => complete(result.asInstanceOf[String])
-      }
+
+  def eventsNoAuth(params: Map[String,List[String]]) = pathPrefix("event") {
+    pathPrefix(DoubleNumber) {
+      distance =>
+        parameter("latitude".as[Double], "longtitude".as[Double]) {
+          (latitude, longtitude) =>
+            get {
+              onComplete(sendGetSiteEventsDistance(distance, latitude, longtitude, params)) { tryAny =>
+                defaultResponse(tryAny, s"SITE GET event/distance/$distance Latittude $latitude and $longtitude")
+              }
+            }
+        }
     }
   }
-
+  val site = (pathPrefix("landing") & parameterMultiMap) {
+    params =>
+      eventsNoAuth(params)
+  }
   val other = get {
     pathPrefix("hello") {
       path("world") {
@@ -406,7 +424,7 @@ trait RouteService extends HttpService {
   complete(StatusCodes.Unauthorized, "No some headers")
 
   val myRoute = {
-    gcm ~
+    site ~
     other ~
     authRoutes
   }

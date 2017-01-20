@@ -6,9 +6,8 @@ import com.typesafe.scalalogging.Logger
 import entities.db.{DatabaseExecutor, DatabaseHelper}
 import response.MyResponse
 import service._
-import service.support.RedisConfig
+import service.support.{ExpiredStatusActor, RedisConfig}
 import spray.can.Http
-
 import scala.concurrent.duration._
 
 import dispatch._, Defaults._
@@ -61,6 +60,8 @@ object App extends MyResponse {
       accountServiceActor,eventServiceActor,categoryServiceActor,
       fcmService, joinServiceActor, taskServiceActor), "routeService")
 
+    val updateExpiredActor = system.actorOf(Props(classOf[ExpiredStatusActor]), "expiredActorService")
+    system.scheduler.schedule(Duration(1,MINUTES), Duration(1,DAYS), updateExpiredActor, ExpiredStatusActor.CheckExpired())
 
     val future: Future[Any] = IO(Http) ? Http.Bind(routeServiceActor, interface = "localhost", port = port)
     future.onComplete {

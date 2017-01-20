@@ -1,6 +1,9 @@
 package dao
 
 
+import java.sql.Timestamp
+import java.time.Instant
+import java.time.temporal.{ChronoUnit, TemporalUnit}
 import com.typesafe.scalalogging.Logger
 import dao.filters.EventFilters
 import slick.backend.StaticDatabaseConfig
@@ -62,10 +65,15 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
 
   def getEvents(filters: EventFilters) = {
     val query = table
-    val newQuery = filters.createQueryWithFilter(query).take(50).result
+    val newQuery = filters.createQueryWithFilter(query).filter(_.isExpired === false).take(150).result
     execute(newQuery)
   }
-
+  def updateEventsStatus() = {
+    val timestamp = new Timestamp(Instant.now.minus(1, ChronoUnit.DAYS).toEpochMilli)
+    val query = for {c <- table if c.date < timestamp && c.isExpired === false} yield c.isExpired
+    val action = query.update(true)
+    execute(action)
+  }
   def incUsersNow(eventId: Int) = {
      val query = sql"""UPDATE events set users_now = users_now + 1 where events.id = $eventId""".as[Int]
      execute(query)
@@ -102,7 +110,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
     val distanceQuery = new DistanceQuery(distance, longtitude, latitude)
     execute(distanceQuery.distanceQueryEventIds).flatMap[Seq[MapEvent]]((res: Vector[Int]) => {
       val query = table.filter(_.id inSet res)
-      execute[Seq[MapEvent]](filters.createQueryWithFilter(query).result)
+      execute[Seq[MapEvent]](filters.createQueryWithFilter(query).filter(_.isExpired === false).result)
     })
   }
 }

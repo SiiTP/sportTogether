@@ -59,6 +59,16 @@ object EventFilters {
         (f:MapEvents) => f.name inSet  values
 
     }),
+    ("id", (values: List[String]) => {
+      if (values.size == 1)
+        (f:MapEvents) => f.userId === values.head.toInt
+      else
+        (f:MapEvents) => f.userId inSet  values.map(_.toInt)
+
+    }),
+    ("isEnded", (values: List[String]) => {
+      (f:MapEvents) => f.isEnded === values.head.toBoolean
+    }),
     ("catId", (values: List[String]) => {
       if (values.size == 1)
         (f:MapEvents) => f.catId === values.head.toInt

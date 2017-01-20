@@ -117,7 +117,7 @@ class AccountService(_redisClientPool: RedisClientPool) {
         userDAO.getByClientId(user.clientId.get).flatMap {
           case storedUser: User =>
             logger.info(s"your clientId already exists. Success!")
-            val copiedUser = user.copy(id = storedUser.id)
+            val copiedUser = user.copy(id = storedUser.id, remindTime = storedUser.remindTime)
             userDAO.update(copiedUser)
             _authAccounts.put(user.clientId.get, copiedUser.toJson.prettyPrint)
             Future.successful(MyResponse.CODE_SUCCESS)

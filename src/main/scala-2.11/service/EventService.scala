@@ -1,5 +1,7 @@
 package service
 
+import java.sql.Timestamp
+
 import akka.actor.{Actor, ActorRef}
 import akka.util.Timeout
 import com.typesafe.scalalogging.Logger
@@ -70,6 +72,7 @@ object EventService {
   case class GetUserEvents(id: Int,user: User)
   case class GetEvent(id: Int,user: User)
   case class GetEventsByDistance(distance: Double, longtitude: Double, latitude: Double, filters: EventFilters,user: User)
+  case class GetEventsByDistanceSite(distance: Double, longtitude: Double, latitude: Double, filters: EventFilters)
   case class UpdateEvent(event: MapEvent, user: User)
   case class ReportEvent(id: Int, user: User)
   case class GetEventsByCategoryId(id: Int)
@@ -139,40 +142,43 @@ class EventServiceActor(eventService: EventService,
   override def receive = {
     case AddEvent(event,user) =>
       val sended = sender()
-      categoyService.getAllCategories(new CategoryFilters(Map("category:name"-> List(event.category.name)))).onSuccess {
-        case categories =>
-//          logger.debug("found categories match names " + categories)
-          var response: Future[MapEvent] = null
-          if (categories.nonEmpty) {
-            response = eventService.addSimpleEvent(event.copy(category = categories.head).toMapEvent,user)
-          } else {
-            response = categoyService.createCategory(event.category.name).flatMap((category: MapCategory) => {
-              logger.debug("created new category: " + category.name)
-              logger.debug("add new event: " + event.name)
-              eventService.addSimpleEvent(event.copy(category = category).toMapEvent,user)
-            })
-          }
+      if (event.date.before(new Timestamp(System.currentTimeMillis()))) {
+        sended ! EventResponse.incorectDate.toJson.prettyPrint
+      } else {
+        categoyService.getAllCategories(new CategoryFilters(Map("category:name"-> List(event.category.name)))).onSuccess {
+          case categories =>
+            var response: Future[MapEvent] = null
+            if (categories.nonEmpty) {
+              response = eventService.addSimpleEvent(event.copy(category = categories.head).toMapEvent,user)
+            } else {
+              response = categoyService.createCategory(event.category.name).flatMap((category: MapCategory) => {
+                logger.debug("created new category: " + category.name)
+                logger.debug("add new event: " + event.name)
+                eventService.addSimpleEvent(event.copy(category = category).toMapEvent,user)
+              })
+            }
 
-          new EventsServiceFetcher(user).fetchOne(response).onComplete {
-            case Success(result) =>
-              val tasks = event.tasks.getOrElse(Seq())
-              if (tasks.nonEmpty) {
-                taskService.createTasks(tasks.map(task => task.copy(eventId = result.id))).onComplete{
-                  case Success(createdTasks) =>
-                    sended ! EventResponse.responseSuccess(Some(result.copy(tasks = Some(createdTasks)))).toJson.prettyPrint
-                    remingderServiceActor ! ReminderService.Add(result.toMapEvent)
-                  case Failure(t) =>
-                    logger.debug("exception add tasks", t)
-                    sended ! EventResponse.unexpectedError(t.getMessage).toJson.prettyPrint
+            new EventsServiceFetcher(user).fetchOne(response).onComplete {
+              case Success(result) =>
+                val tasks = event.tasks.getOrElse(Seq())
+                if (tasks.nonEmpty) {
+                  taskService.createTasks(tasks.map(task => task.copy(eventId = result.id))).onComplete{
+                    case Success(createdTasks) =>
+                      sended ! EventResponse.responseSuccess(Some(result.copy(tasks = Some(createdTasks)))).toJson.prettyPrint
+                      remingderServiceActor ! ReminderService.Add(result.toMapEvent)
+                    case Failure(t) =>
+                      logger.debug("exception add tasks", t)
+                      sended ! EventResponse.unexpectedError(t.getMessage).toJson.prettyPrint
+                  }
+                } else {
+                  sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
+                  remingderServiceActor ! ReminderService.Add(result.toMapEvent)
                 }
-              } else {
-                sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
-                remingderServiceActor ! ReminderService.Add(result.toMapEvent)
-              }
-            case Failure(t) =>
-              logger.debug("exception add event", t)
-              sended ! EventResponse.unexpectedError(t.getMessage).toJson.prettyPrint
-          }
+              case Failure(t) =>
+                logger.debug("exception add event", t)
+                sended ! EventResponse.unexpectedError(t.getMessage).toJson.prettyPrint
+            }
+        }
       }
     case GetEvents(filters, user) =>
       val sended = sender()
@@ -204,7 +210,14 @@ class EventServiceActor(eventService: EventService,
           sended ! EventResponse.responseSuccess(Some(events)).toJson.prettyPrint
         case Failure(t) => sended ! EventResponse.unexpectedError.toJson.prettyPrint
       }
-
+    case GetEventsByDistanceSite(distance, longtitude,latitude, filters) =>
+      val sended = sender()
+      eventService.getEventsInDistance(distance, longtitude, latitude, filters).onComplete {
+      case Success(events) =>
+        logger.debug("got events for site: " + events.size)
+        sended ! EventResponse.responseSuccess(Some(events)).toJson.prettyPrint
+      case Failure(t) => sended ! EventResponse.unexpectedError.toJson.prettyPrint
+    }
     case UpdateEvent(event, user) =>
 
       val sended = sender()

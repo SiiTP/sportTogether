@@ -3,28 +3,33 @@
 <configuration>
     <appender name="ROLLING" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>log/mylog.txt</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
             <!-- rollover daily -->
             <fileNamePattern>log/history/mylog-%d{yyyy-MM-dd}.%i.txt</fileNamePattern>
             <!-- each file should be at most 100MB, keep 60 days worth of history, but at most 20GB -->
-            <maxFileSize>5MB</maxFileSize>
-            <maxHistory>30</maxHistory>
-            <totalSizeCap>1GB</totalSizeCap>
+            <minIndex>1</minIndex>
+            <maxIndex>10</maxIndex>
         </rollingPolicy>
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <maxFileSize>25MB</maxFileSize>
+        </triggeringPolicy>
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss} [%-5level] %-30.-30C %logger %msg%n</pattern>
         </encoder>
     </appender>
     <appender name="SLICK_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>log/slick/slick_log.txt</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
             <!-- rollover daily -->
             <fileNamePattern>log/history/slick/slick_log-%d{yyyy-MM-dd}.%i.txt</fileNamePattern>
             <!-- each file should be at most 100MB, keep 60 days worth of history, but at most 20GB -->
-            <maxFileSize>5MB</maxFileSize>
-            <maxHistory>30</maxHistory>
-            <totalSizeCap>1GB</totalSizeCap>
+            <minIndex>1</minIndex>
+            <maxIndex>10</maxIndex>
         </rollingPolicy>
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <maxFileSize>25MB</maxFileSize>
+        </triggeringPolicy>
+
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss} [%-5level] %logger %msg%n</pattern>
         </encoder>
@@ -36,23 +41,43 @@
             </Pattern>
         </layout>
     </appender>
-
+    <appender name="SP_ROLLING" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>log/special.txt</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <!-- rollover daily -->
+            <fileNamePattern>log/history/special-%d{yyyy-MM-dd}.%i.txt</fileNamePattern>
+            <minIndex>1</minIndex>
+            <maxIndex>10</maxIndex>
+        </rollingPolicy>
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <maxFileSize>25MB</maxFileSize>
+        </triggeringPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%-5level] %-30.-30C %logger %msg%n</pattern>
+        </encoder>
+    </appender>
     <appender name="ASYNC" class="ch.qos.logback.classic.AsyncAppender">
         <appender-ref ref="ROLLING" />
     </appender>
-
+    <appender name="SPECIAL" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="SP_ROLLING" />
+    </appender>
     <appender name="ASYNC_SLICK" class="ch.qos.logback.classic.AsyncAppender">
         <appender-ref ref="SLICK_FILE" />
     </appender>
 
-    <!--<logger name="slick" level="DEBUG">-->
-        <!--<appender-ref ref="ASYNC_SLICK" />-->
-    <!--</logger>-->
+    <logger name="slick" level="INFO">
+        <appender-ref ref="ASYNC_SLICK" />
+    </logger>
 
     <logger name="slick.jdbc.JdbcBackend.statement" level="DEBUG"/>
 
     <logger name="webApp" level="DEBUG">
         <appender-ref ref="STDOUT" />
         <appender-ref ref="ASYNC" />
+    </logger>
+    <logger name="special" level="INFO">
+        <appender-ref ref="SPECIAL" />
+        <appender-ref ref="STDOUT" />
     </logger>
 </configuration>
