@@ -1,5 +1,7 @@
 import RandomUtils
 import random
+import time
+import datetime
 from entities.Entities import Tasks, Event, Category, User
 
 
@@ -27,6 +29,8 @@ def random_task():
 def random_user():
     return User(name=RandomUtils.random_generator(4))
 
+def random_date():
+    return int(round(time.time() * 1000)) + random.randint(5 * 1000 * 60 * 60 * 60,30 * 24 * 1000 * 60 * 60 * 60)
 
 def random_event():
     tasks = []
@@ -36,4 +40,5 @@ def random_event():
                  category=random_category_creator.create_category(),
                  latitude=RandomUtils.random_latitude_near_moscow(),
                  longtitude=RandomUtils.random_longtitude_near_moscow(),
+                 date= random_date(),
                  tasks=tasks)

@@ -25,7 +25,7 @@ class EventService {
   private val eventsDAO = new EventsDAO()
 
   def updateEvent(event: MapEvent, user: User): Future[Int] = {
-    getUserEvents(user).flatMap { events =>
+    getUserEvents(user.id.getOrElse(0), None).flatMap { events =>
       events.map(_.id).contains(event.id) match {
         case true => eventsDAO.update(event)
         case false => Future.successful(0)
@@ -45,9 +45,6 @@ class EventService {
   def addSimpleEvent(event: MapEvent, user: User) = {
     eventsDAO.create(event.copy(userId = user.id))
   }
-  def getUserEvents(user: User) = {
-    eventsDAO.eventsByUserId(user.id.getOrElse(0))
-  }
   def getEventsAround(filters: EventFilters) = {
     eventsDAO.getEvents(filters)
   }
@@ -61,7 +58,7 @@ class EventService {
         Future.failed(e)
     })
   }
-  def getUserEvents(id: Int) = eventsDAO.eventsByUserId(id)
+  def getUserEvents(id: Int, eventFilters: Option[EventFilters]) = eventsDAO.eventsByUserId(id, eventFilters)
   def getEvent(id: Int) = eventsDAO.get(id)
   def getEventsInDistance(distance: Double, lon: Double, lat: Double, filters: EventFilters) = eventsDAO.getNearestEventsByDistance(distance,lon,lat, filters)
 }
@@ -69,7 +66,7 @@ class EventService {
 object EventService {
   case class AddEvent(event: MapEventAdapter,user: User)
   case class GetEvents(filters: EventFilters,user: User)
-  case class GetUserEvents(id: Int,user: User)
+  case class GetUserEvents(id: Int,user: User, eventFilters: EventFilters)
   case class GetEvent(id: Int,user: User)
   case class GetEventsByDistance(distance: Double, longtitude: Double, latitude: Double, filters: EventFilters,user: User)
   case class GetEventsByDistanceSite(distance: Double, longtitude: Double, latitude: Double, filters: EventFilters)
@@ -190,9 +187,9 @@ class EventServiceActor(eventService: EventService,
           logger.info(s"fail when get events : " + e.getMessage)
           sended ! EventResponse.responseSuccess[MapEvent](None).toJson.prettyPrint
       }
-    case GetUserEvents(id, user) =>
+    case GetUserEvents(id, user, filter) =>
       val sended = sender()
-      new EventsServiceFetcher(user).fetch(eventService.getUserEvents(id)).onSuccess {
+      new EventsServiceFetcher(user).fetch(eventService.getUserEvents(id, Some(filter))).onSuccess {
         case eventsSeq => sended ! EventResponse.responseSuccess(Some(eventsSeq)).toJson.prettyPrint
       }
     case GetEvent(id, user) =>

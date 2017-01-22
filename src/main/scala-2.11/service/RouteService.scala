@@ -71,7 +71,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef,
             eventsServiceRef ? EventService.AddEvent(event,user)
 
   }
-  override def sendGetUserEvents(id:Int,user: User) = eventsServiceRef ? EventService.GetUserEvents(id, user)
+  override def sendGetUserEvents(id:Int,user: User,param: Map[String,List[String]]) = eventsServiceRef ? EventService.GetUserEvents(id, user, new EventFilters(param))
 
   override def sendGetEvent(id: Int,user: User) = eventsServiceRef ? EventService.GetEvent(id,user)
 
@@ -138,7 +138,7 @@ trait RouteService extends HttpService {
 
   def sendGetEvents(param: Map[String,List[String]], user: User): Future[Any]
 
-  def sendGetUserEvents(id: Int, user: User): Future[Any]
+  def sendGetUserEvents(id: Int, user: User, param: Map[String,List[String]]): Future[Any]
   def sendGetJoinedEvents(user: User): Future[Any]
 
   def sendGetEventsByCategoryId(id: Int): Future[Any]
@@ -321,7 +321,7 @@ trait RouteService extends HttpService {
     } ~
     pathPrefix("user") {
       get {
-        onComplete(sendGetUserEvents(user.id.get, user)) { tryAny =>
+        onComplete(sendGetUserEvents(user.id.get, user,params)) { tryAny =>
           defaultResponse(tryAny, "GET event/user")
         }
       }

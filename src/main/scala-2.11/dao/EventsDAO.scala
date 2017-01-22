@@ -59,8 +59,15 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
     })
   }
 
-  def eventsByUserId(id: Int): Future[Seq[MapEvent]] = {
-    execute(table.filter(_.userId === id).result)
+  def eventsByUserId(id: Int, eventsFilter: Option[EventFilters]): Future[Seq[MapEvent]] = {
+    val query = table.filter(_.userId === id).sortBy(_.date desc)
+    eventsFilter match {
+      case Some(f) =>
+        execute(f.createQueryWithFilter(query).result)
+      case None =>
+        execute(query.result)
+    }
+
   }
 
   def getEvents(filters: EventFilters) = {
