@@ -72,7 +72,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
 
   def getEvents(filters: EventFilters) = {
     val query = table
-    val newQuery = filters.createQueryWithFilter(query).filter(_.isExpired === false).take(150).result
+    val newQuery = filters.createQueryWithFilter(query).filter(_.isExpired === false).sortBy(_.date desc).take(150).result
     execute(newQuery)
   }
   def updateEventsStatus() = {

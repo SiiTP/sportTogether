@@ -90,9 +90,10 @@ object EventFilters {
   //для фильтров по смежным таблице MapEvents->MapCategories
   private val categoryFilters = scala.collection.immutable.Map(
     ("name", (values: List[String]) => {
-      if (values.size == 1)
-        (f:(MapEvents, MapCategories)) => f._2.name === values.head
-      else
+      if (values.size == 1) {
+        val searchValue = "%" + values.head + "%"
+        (f:(MapEvents, MapCategories)) => f._2.name.toLowerCase like searchValue
+      } else
         (f:(MapEvents, MapCategories)) => f._2.name inSet values
     })
   )
