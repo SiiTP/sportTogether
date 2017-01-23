@@ -4,6 +4,31 @@
   background-size: cover;
   background-position: center;
 
+  @media (max-width: 300px) {
+
+    &__past-slogan {
+      color: white;
+      width: 80%;
+      padding: 10px;
+      font-size: 14px !important;
+    }
+  }
+
+  @media (min-width: 300px) and (max-width: 500px) {
+    &__now-slogan {
+      box-sizing: border-box;
+      width: 80%;
+      text-align: right;
+      //background: #000000;
+      //opacity: 0.7;
+      color: white;
+      margin: 0 0 0 auto;
+      padding: 10px;
+      font-size: 12px !important;
+    }
+  }
+
+
   &__past-slogan {
     color: white;
     width: 80%;

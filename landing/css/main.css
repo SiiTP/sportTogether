@@ -4,11 +4,11 @@ html, body {
   border: 0;
   height: 100%;
   width: 100%;
-  min-width: 500px; }
+  min-width: 400px; }
 
 #page {
   height: 100%;
-  min-width: 800px; }
+  min-width: 600px; }
 
 #content {
   height: 100%; }
@@ -28,7 +28,7 @@ html, body {
   .slogan-container__slogan {
     box-sizing: border-box;
     max-width: 700px;
-    min-width: 400px;
+    min-width: 300px;
     margin: 0 auto;
     padding-top: 30px; }
     .slogan-container__slogan__image {
@@ -36,6 +36,24 @@ html, body {
       margin: 0 auto;
       height: 90px;
       width: auto; }
+    @media (max-width: 600px) {
+      .slogan-container__slogan__header {
+        text-align: center;
+        font-size: 24px !important; }
+      .slogan-container__slogan__content {
+        padding: 0;
+        margin: 0;
+        text-align: center;
+        font-size: 18px !important; } }
+    @media (min-width: 600px) and (max-width: 1000px) {
+      .slogan-container__slogan__header {
+        text-align: center;
+        font-size: 4vw !important; }
+      .slogan-container__slogan__content {
+        padding: 0;
+        margin: 0;
+        text-align: center;
+        font-size: 3vw !important; } }
     .slogan-container__slogan__header {
       text-align: center; }
     .slogan-container__slogan__content {
@@ -60,6 +78,21 @@ html, body {
   background: url("/static/images/landing_base.jpg") no-repeat;
   background-size: cover;
   background-position: center; }
+  @media (max-width: 300px) {
+    .past-now__past-slogan {
+      color: white;
+      width: 80%;
+      padding: 10px;
+      font-size: 14px !important; } }
+  @media (min-width: 300px) and (max-width: 500px) {
+    .past-now__now-slogan {
+      box-sizing: border-box;
+      width: 80%;
+      text-align: right;
+      color: white;
+      margin: 0 0 0 auto;
+      padding: 10px;
+      font-size: 12px !important; } }
   .past-now__past-slogan {
     color: white;
     width: 80%;
@@ -71,5 +104,19 @@ html, body {
     color: white;
     margin: 0 0 0 auto;
     padding: 10px; }
+
+.features {
+  height: 100%; }
+  .features__share {
+    margin: 0 15%; }
+    .features__share__img {
+      width: 100%; }
+    .features__share__text {
+      text-align: center;
+      font-size: 6vw; }
+    @media (min-width: 600px) {
+      .features__share__text {
+        text-align: center;
+        font-size: 20px; } }
 
 /*# sourceMappingURL=main.css.map */

@@ -1,0 +1,23 @@
+.features {
+  height: 100%;
+
+  &__share {
+    margin: 0 15%;
+
+    &__img {
+      width: 100%;
+    }
+
+    &__text {
+      text-align: center;
+      font-size: 6vw;
+    }
+
+    @media (min-width: 600px ) {
+      &__text {
+        text-align: center;
+        font-size: 20px;
+      }
+    }
+  }
+}
