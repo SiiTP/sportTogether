@@ -83,7 +83,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
   }
 
   def eventsByUserId(id: Int, eventsFilter: Option[EventFilters]): Future[Seq[MapEvent]] = {
-    val query = table.filter(_.userId === id).filter(_.isTemplate === false).sortBy(_.date desc)
+    val query = table.filter(_.userId === id).filter(_.isTemplate === false).sortBy(_.date asc)
     eventsFilter match {
       case Some(f) =>
         execute(f.createQueryWithFilter(query).result)
@@ -96,7 +96,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
   def getEvents(filters: EventFilters) = {
     val query = table
     val newQuery = filters.createQueryWithFilter(query).filter(_.isExpired === false)
-      .filter(_.isTemplate === false).sortBy(_.date desc).take(150).result
+      .filter(_.isTemplate === false).sortBy(_.date asc).take(150).result
     execute(newQuery)
   }
   def updateEventsStatus() = {
