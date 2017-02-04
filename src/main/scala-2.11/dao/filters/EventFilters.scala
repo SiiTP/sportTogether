@@ -1,5 +1,7 @@
 package dao.filters
 
+import java.sql.Timestamp
+
 import entities.db.{MapCategories, Tables, MapEvents, MapEvent}
 import slick.driver.MySQLDriver
 import slick.lifted.{Query, ColumnOrdered}
@@ -19,6 +21,7 @@ class EventFilters(_paramMap: Map[String,List[String]]) extends ParametersFiltra
 
   /**
     * Эту херню нужео самому переопределять, т.к. join для каждой таблицы по своим полям происходит
+    *
     * @param tableName
     * @param args
     * @param q
@@ -58,6 +61,12 @@ object EventFilters {
       else
         (f:MapEvents) => f.name inSet  values
 
+    }),
+    ("dateMax", (values: List[String]) => {
+      (f:MapEvents) => f.date < new Timestamp(values.head.toLong)
+    }),
+    ("dateMin", (values: List[String]) => {
+      (f:MapEvents) => f.date > new Timestamp(values.head.toLong)
     }),
     ("id", (values: List[String]) => {
       if (values.size == 1)
