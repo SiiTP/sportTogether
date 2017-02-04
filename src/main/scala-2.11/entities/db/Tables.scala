@@ -32,7 +32,8 @@ case class MapEvent(
                      isEnded: Boolean = false,
                      userId: Option[Int] = None,
                      id: Option[Int] = None,
-                     isExpired: Boolean = false
+                     isExpired: Boolean = false,
+                     isTemplate: Boolean = false
 
                    )
 
@@ -78,7 +79,7 @@ object EntitiesJsonProtocol extends DefaultJsonProtocol {
   implicit val userAdapterFormat = jsonFormat3(UserAdapter)
   implicit val tasksFormat = jsonFormat4(EventTask)
   implicit val eventUsersFormat = jsonFormat4(UserJoinEvent)
-  implicit val mapEventFormat = jsonFormat14(MapEvent)
+  implicit val mapEventFormat = jsonFormat15(MapEvent)
   implicit val mapEventResultAdapterFormat = jsonFormat2(MapEventResultAdapter)
   implicit val mapCategoryFormat = jsonFormat2(MapCategory)
   implicit val mapEventAdapterFormat = jsonFormat16(MapEventAdapter)
@@ -134,12 +135,14 @@ class MapEvents(tag: Tag) extends Table[MapEvent](tag, "events") {
   def currentUsers = column[Int]("users_now")
   def isEnded = column[Boolean]("isEnded")
   def isExpired = column[Boolean]("expired")
+  def isTemplate = column[Boolean]("template")
   def date = column[Timestamp]("date")
   def latitude = column[Double]("latitude")
   def longtitude = column[Double]("longtitude")
   def mapCategory = foreignKey("cat_fk", catId, Tables.categories)(_.id)
   def mapUser = foreignKey("user_fk", userId, Tables.users)(_.id)
-  def * = (name, catId, latitude, longtitude, date,  maxPeople, report.?, currentUsers.?, description, result, isEnded, userId.?, id.?, isExpired) <> (MapEvent.tupled,MapEvent.unapply)
+  def * = (name, catId, latitude, longtitude, date,  maxPeople, report.?, currentUsers.?,
+    description, result, isEnded, userId.?, id.?, isExpired, isTemplate) <> (MapEvent.tupled,MapEvent.unapply)
 }
 
 class Users(tag:Tag) extends Table[User](tag,"user"){

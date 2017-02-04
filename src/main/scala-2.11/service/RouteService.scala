@@ -91,7 +91,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef,
                                          param: Map[String,List[String]]): Future[Any] = {
     _eventService ? EventService.GetEventsByDistanceSite(distance, longtitude, latitude, new EventFilters(param))
   }
-  override def sendUpdateEvents(event: MapEvent, user: User) = _eventService ? EventService.UpdateEvent(event, user)
+  override def sendUpdateEvents(event: MapEventAdapter, user: User) = _eventService ? EventService.UpdateEvent(event, user)
   override def sendUpdateResult(event: MapEventResultAdapter, user: User) = _eventService ? EventService.UpdateEventResult(event, user)
   override def sendFinishEvent(id: Int, user: User): Future[Any] = _eventService ? EventService.FinishEvent(id, user)
   override def sendReportEvent(id: Int, user: User) = _eventService ? EventService.ReportEvent(id, user)
@@ -107,6 +107,14 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef,
 
   override def sendGetEventTasks(eventId: Int): Future[Any] = _taskServiceActor ? TaskService.GetEventTasks(eventId)
   override def sendUpdateTask(task: EventTask, user: User): Future[Any] = _taskServiceActor ? TaskService.UpdateTasks(task, user)
+
+  override def sendGetTemplates(user: User): Future[Any] = _eventService ? EventService.GetUserTemplates(user)
+
+  override def sendUpdateTemplates(event: MapEventAdapter, user: User): Future[Any] = _eventService ? EventService.UpdateTemplate(event, user)
+
+  override def sendDeleteTemplate(id: Int, user: User): Future[Any] = _eventService ? EventService.DeleteTemplate(id, user)
+
+  override def sendAddTemplates(event: MapEventAdapter, user: User): Future[Any] = _eventService ? EventService.AddTemplate(event, user)
 }
 
 object RouteServiceActor {
@@ -159,12 +167,18 @@ trait RouteService extends HttpService {
 
   def sendReportEvent(id: Int, user: User): Future[Any]
   def sendFinishEvent(id: Int, user: User): Future[Any]
-  def sendUpdateEvents(event: MapEvent, user: User): Future[Any]
+  def sendUpdateEvents(event: MapEventAdapter, user: User): Future[Any]
   def sendUpdateResult(event: MapEventResultAdapter, user: User): Future[Any]
   def sendUserJoinEvent(user: User, eventId: Int, token: String): Future[Any]
   def sendUserLeaveEvent(user: User, eventId: Int): Future[Any]
   def sendGetEventTasks(eventId: Int): Future[Any]
   def sendUpdateTask(task: EventTask, user: User): Future[Any]
+
+  def sendGetTemplates(user: User): Future[Any]
+  def sendUpdateTemplates(event: MapEventAdapter, user: User): Future[Any]
+  def sendAddTemplates(event: MapEventAdapter,user: User): Future[Any]
+  def sendDeleteTemplate(id: Int, user: User): Future[Any]
+
   def getStringResponse(data: Any) = data.asInstanceOf[String]
 
   //т.к. везде одинаковые ответы(строки), то вынес все в одну функцию
@@ -279,9 +293,8 @@ trait RouteService extends HttpService {
             }
           } ~
           put {
-            entity(as[MapEvent]) { event =>
-
-              onComplete(sendUpdateEvents(event.copy(userId = user.id, id = Some(id)), user)) { tryAny =>
+            entity(as[MapEventAdapter]) { event =>
+              onComplete(sendUpdateEvents(event.copy(id = Some(id)), user)) { tryAny =>
                 defaultResponse(tryAny, s"PUT event/$id data:$event")
               }
             }
@@ -339,6 +352,39 @@ trait RouteService extends HttpService {
           }
       }
     } ~ complete(EventResponse.unexpectedPath.toJson.prettyPrint)
+  }
+  def templates(user: User, params: Map[String,List[String]]) = pathPrefix("templates") {
+    pathPrefix(IntNumber) {
+      id =>
+          pathEnd {
+              put {
+                entity(as[MapEventAdapter]) { event =>
+                  onComplete(sendUpdateTemplates(event.copy(id = Some(id)), user)) { tryAny =>
+                    defaultResponse(tryAny, s"PUT event/$id data:$event")
+                  }
+                }
+              } ~
+              delete {
+                onComplete(sendDeleteTemplate(id, user))  { tryAny =>
+                  defaultResponse(tryAny, s"DELETE event/$id")
+                }
+              }
+          }
+    } ~
+      pathEnd {
+        get {
+          onComplete(sendGetTemplates(user)) { tryAny =>
+            defaultResponse(tryAny, s"GET event/")
+          }
+        } ~
+        post {
+          entity(as[MapEventAdapter]) { event =>
+            onComplete(sendAddTemplates(event, user)) { tryAny =>
+              defaultResponse(tryAny, s"POST event/ data:$event")
+            }
+          } ~ complete(EventResponse.noSomeParameters.toJson.prettyPrint)
+        }
+      } ~ complete(EventResponse.unexpectedPath.toJson.prettyPrint)
   }
   def task(user: User) = pathPrefix("task") {
     get {
@@ -406,6 +452,7 @@ trait RouteService extends HttpService {
           case Some(u) =>
             logger.debug(s"USER: $u")
             event(u,params) ~
+            templates(u, params) ~
             category(u, params) ~
             task(u) ~
             user(u)

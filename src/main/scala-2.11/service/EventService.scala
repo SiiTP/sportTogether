@@ -21,16 +21,26 @@ import scala.util.{Failure, Success}
   * Created by ivan on 25.09.16.
   */
 class EventService {
+
+
   val logger = Logger("webApp")
   private val eventsDAO = new EventsDAO()
-
   def updateEvent(event: MapEvent, user: User): Future[Int] = {
-    getUserEvents(user.id.getOrElse(0), None).flatMap { events =>
-      events.map(_.id).contains(event.id) match {
-        case true => eventsDAO.update(event)
-        case false => Future.successful(0)
+    getEvent(event.id.getOrElse(0)).flatMap(storedEvent =>
+      if (storedEvent.userId == user.id) {
+        eventsDAO.update(event.copy(
+          userId = storedEvent.userId,
+          currentUsers = storedEvent.currentUsers,
+          reports = storedEvent.reports,
+          result = storedEvent.result,
+          isExpired = storedEvent.isExpired,
+          isTemplate = storedEvent.isTemplate,
+          isEnded = storedEvent.isEnded)
+        )
+      } else {
+        Future(0)
       }
-    }
+    )
   }
 
   def updateResult(event: MapEventResultAdapter, mapEvent: MapEvent): Future[Int] = {
@@ -61,6 +71,31 @@ class EventService {
   def getUserEvents(id: Int, eventFilters: Option[EventFilters]) = eventsDAO.eventsByUserId(id, eventFilters)
   def getEvent(id: Int) = eventsDAO.get(id)
   def getEventsInDistance(distance: Double, lon: Double, lat: Double, filters: EventFilters) = eventsDAO.getNearestEventsByDistance(distance,lon,lat, filters)
+
+  def getUserTemplates(user: User): Future[Seq[MapEvent]] = {
+    eventsDAO.getUserTemplates(user.id.getOrElse(0))
+  }
+  def addSimpleEventTemplate(event: MapEvent, user: User): Future[MapEvent] = {
+    eventsDAO.createTemplate(event.copy(userId = user.id))
+  }
+
+  def updateTemplateEvent(event: MapEvent, user: User): Future[Int] = {
+    getEvent(event.id.getOrElse(0)).flatMap(storedEvent =>
+      if(storedEvent.userId == user.id && storedEvent.isTemplate){
+        eventsDAO.update(event.copy(
+          userId = storedEvent.userId,
+          currentUsers = storedEvent.currentUsers,
+          reports = storedEvent.reports,
+          result = storedEvent.result,
+          isExpired = storedEvent.isExpired,
+          isTemplate = storedEvent.isTemplate,
+          isEnded = storedEvent.isEnded)
+        )
+      } else {
+        Future{0}
+      }
+    )
+  }
 }
 
 object EventService {
@@ -70,11 +105,16 @@ object EventService {
   case class GetEvent(id: Int,user: User)
   case class GetEventsByDistance(distance: Double, longtitude: Double, latitude: Double, filters: EventFilters,user: User)
   case class GetEventsByDistanceSite(distance: Double, longtitude: Double, latitude: Double, filters: EventFilters)
-  case class UpdateEvent(event: MapEvent, user: User)
+  case class UpdateEvent(event: MapEventAdapter, user: User)
   case class ReportEvent(id: Int, user: User)
   case class GetEventsByCategoryId(id: Int)
   case class FinishEvent(id: Int, user: User)
   case class UpdateEventResult(event: MapEventResultAdapter, user: User)
+
+  case class AddTemplate(event: MapEventAdapter,user: User)
+  case class UpdateTemplate(event: MapEventAdapter,user: User)
+  case class DeleteTemplate(id: Int, user: User)
+  case class GetUserTemplates(user: User)
 
   val logger = Logger("webApp")
 
@@ -218,7 +258,7 @@ class EventServiceActor(eventService: EventService,
     case UpdateEvent(event, user) =>
 
       val sended = sender()
-      eventService.updateEvent(event,user).onComplete {
+      eventService.updateEvent(event.toMapEvent,user).onComplete {
         case Success(updatedEvent) if updatedEvent > 0 =>
           sended ! EventResponse.responseSuccess(Some(event)).toJson.prettyPrint
         case Success(updatedEvent) if updatedEvent == 0 =>
@@ -267,14 +307,79 @@ class EventServiceActor(eventService: EventService,
               sended ! EventResponse.responseSuccess(Some(UserReport(user.id.get,id))).toJson.prettyPrint
               messageServiceActor ! MessageService.SendTokensTextMessage(tokens.map(_.deviceToken),FcmTextMessage(result.name,"Событие отменено", FcmMessage.CANCELLED))
             case Failure(t) =>
-              logger.info("join event failure : ", t)
-              sended ! EventResponse.alreadyReport.toJson.prettyPrint
+              logger.info("event finish failure : ", t)
+              sended ! EventResponse.notFoundError.toJson.prettyPrint
           }
         case Failure(t) =>
           logger.debug("exception ", t)
           sended ! EventResponse.unexpectedError(t.getMessage).toJson.prettyPrint
       }
 
+
+
+    case AddTemplate(event, user) =>
+      val sended = sender()
+      categoyService.getAllCategories(new CategoryFilters(Map("category:name"-> List(event.category.name)))).onSuccess {
+        case categories =>
+          var response: Future[MapEvent] = null
+          if (categories.nonEmpty) {
+            response = eventService.addSimpleEventTemplate(event.copy(category = categories.head).toMapEvent,user)
+          } else {
+            response = categoyService.createCategory(event.category.name).flatMap((category: MapCategory) => {
+              logger.debug("created new category: " + category.name)
+              logger.debug("add new event: " + event.name)
+              eventService.addSimpleEventTemplate(event.copy(category = category).toMapEvent,user)
+            })
+          }
+
+          new EventsServiceFetcher(user).fetchOne(response).onComplete {
+            case Success(result) =>
+              val tasks = event.tasks.getOrElse(Seq())
+              if (tasks.nonEmpty) {
+                taskService.createTasks(tasks.map(task => task.copy(eventId = result.id))).onComplete{
+                  case Success(createdTasks) =>
+                    sended ! EventResponse.responseSuccess(Some(result.copy(tasks = Some(createdTasks)))).toJson.prettyPrint
+                  case Failure(t) =>
+                    logger.debug("exception add tasks", t)
+                    sended ! EventResponse.unexpectedError(t.getMessage).toJson.prettyPrint
+                }
+              } else {
+                sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
+              }
+            case Failure(t) =>
+              logger.debug("exception add event", t)
+              sended ! EventResponse.unexpectedError(t.getMessage).toJson.prettyPrint
+          }
+
+      }
+    case DeleteTemplate(id, user) =>
+      val sended = sender()
+      eventService.finishEvent(id, user).onComplete {
+        case Success(result) =>
+          sended ! EventResponse.responseSuccess(Some(result)).toJson.prettyPrint
+        case Failure(t) =>
+          logger.info("join event failure : ", t)
+          sended ! EventResponse.alreadyDeleted.toJson.prettyPrint
+      }
+    case UpdateTemplate(event, user) =>
+      val sended = sender()
+      eventService.updateTemplateEvent(event.toMapEvent,user).onComplete {
+        case Success(updatedEvent) if updatedEvent > 0 =>
+          sended ! EventResponse.responseSuccess(Some(event)).toJson.prettyPrint
+        case Success(updatedEvent) if updatedEvent == 0 =>
+          sended ! EventResponse.notYourEvent.toJson.prettyPrint
+        case Failure(t) =>
+          logger.info("failed" , t)
+          sended ! EventResponse.notFoundError.toJson.prettyPrint
+      }
+    case GetUserTemplates(user) =>
+      val sended = sender()
+      new EventsServiceFetcher(user).fetch(eventService.getUserTemplates(user)).onComplete {
+        case Success(events) =>
+          logger.debug("got events: " + events.size)
+          sended ! EventResponse.responseSuccess(Some(events)).toJson.prettyPrint
+        case Failure(t) => sended ! EventResponse.unexpectedError.toJson.prettyPrint
+      }
   }
 }
 

@@ -23,6 +23,8 @@ import scala.util.{Failure, Success}
   * Created by ivan on 19.09.16.
   */
 class EventsDAO extends DatabaseDAO[MapEvent,Int] {
+
+
   private val table = Tables.events
   private val logger = Logger("webApp")
 
@@ -32,11 +34,32 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
     val insert = (table returning table.map(_.id)).into((item, id) => item.copy(id = Some(id)))
     execute(insert += c)
   }
-
+  def createTemplate(r: MapEvent): Future[MapEvent] = {
+    val c = r.copy(reports = Some(0), currentUsers = Some(0), isTemplate = true)
+    val insert = (table returning table.map(_.id)).into((item, id) => item.copy(id = Some(id)))
+    execute(insert += c)
+  }
+  def getUserTemplates(id: Int): Future[Seq[MapEvent]] = {
+    val query = table.filter(_.userId === id).filter(_.isTemplate === true).sortBy(_.date asc)
+    execute(query.result)
+  }
   override def update(r: MapEvent): Future[Int] = {
     //    val query = table.filter(_.id === r.id)
-    val query = for {c <- table if c.id === r.id} yield (c.date, c.description, c.result, c.latitude, c.longtitude, c.isEnded, c.catId, c.userId, c.name)
-    val action = query.update((r.date, r.description, r.result, r.latitude, r.longtitude, r.isEnded, r.categoryId, r.userId.get, r.name))
+    val query = for {c <- table if c.id === r.id} yield (c.date, c.description, c.result, c.latitude, c.longtitude, c.isEnded, c.catId, c.userId, c.name, c.maxPeople, c.date, c.isExpired)
+    val action = query.update(
+      (r.date,
+        r.description,
+        r.result,
+        r.latitude,
+        r.longtitude,
+        r.isEnded,
+        r.categoryId,
+        r.userId.get,
+        r.name,
+        r.maxPeople,
+        r.date,
+        r.isExpired)
+    )
     execute(action)
   }
 
@@ -60,7 +83,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
   }
 
   def eventsByUserId(id: Int, eventsFilter: Option[EventFilters]): Future[Seq[MapEvent]] = {
-    val query = table.filter(_.userId === id).sortBy(_.date desc)
+    val query = table.filter(_.userId === id).filter(_.isTemplate === false).sortBy(_.date desc)
     eventsFilter match {
       case Some(f) =>
         execute(f.createQueryWithFilter(query).result)
@@ -72,12 +95,13 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
 
   def getEvents(filters: EventFilters) = {
     val query = table
-    val newQuery = filters.createQueryWithFilter(query).filter(_.isExpired === false).sortBy(_.date desc).take(150).result
+    val newQuery = filters.createQueryWithFilter(query).filter(_.isExpired === false)
+      .filter(_.isTemplate === false).sortBy(_.date desc).take(150).result
     execute(newQuery)
   }
   def updateEventsStatus() = {
     val timestamp = new Timestamp(Instant.now.minus(1, ChronoUnit.DAYS).toEpochMilli)
-    val query = for {c <- table if c.date < timestamp && c.isExpired === false} yield c.isExpired
+    val query = for {c <- table if c.date < timestamp && c.isExpired === false && c.isTemplate === false} yield c.isExpired
     val action = query.update(true)
     execute(action)
   }
@@ -117,7 +141,8 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
     val distanceQuery = new DistanceQuery(distance, longtitude, latitude)
     execute(distanceQuery.distanceQueryEventIds).flatMap[Seq[MapEvent]]((res: Vector[Int]) => {
       val query = table.filter(_.id inSet res)
-      execute[Seq[MapEvent]](filters.createQueryWithFilter(query).filter(_.isExpired === false).result)
+      execute[Seq[MapEvent]](filters.createQueryWithFilter(query)
+        .filter(_.isExpired === false).filter(_.isTemplate === false).result)
     })
   }
 }

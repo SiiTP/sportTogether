@@ -9,4 +9,6 @@ object EventResponse extends MyResponse{
   def noSomeParameters = ResponseError(3, "no some required parameters in request")
   def alreadyPostedResult = ResponseError(4, "result already posted!")
   def incorectDate = ResponseError(5, "incorrect date!")
+  def notYourEvent = ResponseError(6, "you are not event owner")
+  def alreadyDeleted = ResponseError(7, "event already deleted")
 }
