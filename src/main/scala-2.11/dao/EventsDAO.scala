@@ -93,16 +93,22 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
   }
 
   def getEvents(filters: EventFilters) = {
-    val query = table
-    val newQuery = filters.createQueryWithFilter(query).filter(_.isExpired === false)
-      .filter(_.isTemplate === false).sortBy(_.date.asc).take(150).result
-    execute(newQuery)
+    val query = table.filter(_.isExpired === false)
+      .filter(_.isTemplate === false).sortBy(_.date.asc)
+    val newnewQuery = filters.createQueryWithFilter(query).take(150).result
+    execute(newnewQuery)
   }
   def updateEventsStatus() = {
     val timestamp = new Timestamp(Instant.now.minus(1, ChronoUnit.DAYS).toEpochMilli)
     val query = for {c <- table if c.date < timestamp && c.isExpired === false && c.isTemplate === false} yield c.isExpired
     val action = query.update(true)
     execute(action)
+  }
+  def deleteUnfinishedExpiredEvents() = {
+    execute(table
+      .filter(_.isExpired === true)
+      .filter(_.isEnded === false)
+      .filter(_.isTemplate === false).delete)
   }
   def incUsersNow(eventId: Int) = {
      val query = sql"""UPDATE events set users_now = users_now + 1 where events.id = $eventId""".as[Int]

@@ -97,7 +97,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef,
   override def sendReportEvent(id: Int, user: User) = _eventService ? EventService.ReportEvent(id, user)
   override def sendGetEventsByCategoryId(id: Int) = _eventService ? EventService.GetEventsByCategoryId(id)
   override def sendGetEventsByCategoryName(name: String) = _categoryService ? CategoryService.GetEventsByCategoryName(name)
-
+  override def sendGetEventJoinedUsers(eventId: Int): Future[Any] = _joinEventService ? JoinEventService.GetEventJoinedUsers(eventId)
 
   override def sendUserJoinEvent(user: User, eventId: Int, token: String): Future[Any] = _joinEventService ? JoinEventService.AddUserToEvent(eventId, user, token)
   override def sendGetJoinedEvents(user: User) = _joinEventService ? JoinEventService.GetEventsOfUserJoined(user)
@@ -172,6 +172,7 @@ trait RouteService extends HttpService {
   def sendUserJoinEvent(user: User, eventId: Int, token: String): Future[Any]
   def sendUserLeaveEvent(user: User, eventId: Int): Future[Any]
   def sendGetEventTasks(eventId: Int): Future[Any]
+  def sendGetEventJoinedUsers(eventId: Int): Future[Any]
   def sendUpdateTask(task: EventTask, user: User): Future[Any]
 
   def sendGetTemplates(user: User): Future[Any]
@@ -283,6 +284,13 @@ trait RouteService extends HttpService {
           delete {
             onComplete(sendUserLeaveEvent(user, id)) {
               defaultResponse
+            }
+          }
+        } ~
+        path("users"){
+          get {
+            onComplete(sendGetEventJoinedUsers(id)) { tryAny =>
+              defaultResponse(tryAny, s"GET event/$id/users")//"eip4vuQhWQU:APA91bEFEEZKOAUBoKwa3RsjU7oTcKTVbWdZbqZ5JB4d5vjJH7H8kFN3hKWKuOovhShpLVt6asIsiWVZdLZvsDHAraftWgltTNMixG7TmQwphH-vjQ6TVMC-QxZs6FZBM8tCJ7O2Qa8v"
             }
           }
         } ~

@@ -22,6 +22,7 @@ class JoinEventService {
   private val eventUsersDAO = new EventUsersDAO()
   private val eventsDAO = new EventsDAO()
   private val tasksDao = new TaskDao()
+  private val userDao = new UserDAO()
   //if store in database replace with dao
   def add(userJoinEvent: UserJoinEvent) = {
     logger.debug(s"add ${userJoinEvent.userId} to event ${userJoinEvent.eventId} , token:${userJoinEvent.deviceToken}")
@@ -35,7 +36,9 @@ class JoinEventService {
 
     }
   }
-
+  def getEventsJoinedUsers(eId: Int): Future[Seq[User]] = {
+    eventUsersDAO.getById(eId).map(_.map(_.userId)).flatMap(userDao.getUsersByIds)
+  }
   def getEventsOfUserJoined(user: User): Future[Seq[MapEventAdapter]] = {
     EventService.toAdapterForm(eventUsersDAO.getEventsOfUserJoined(user), user)
   }
@@ -87,6 +90,7 @@ object JoinEventService {
   case class GetTokens(eId: Int)
   case class LeaveEvent(eId: Int, user: User)
   case class GetCreatorToken(eId: Int)
+  case class GetEventJoinedUsers(eId: Int)
 }
 
 /**
@@ -176,6 +180,15 @@ class JoinEventServiceActor(service: JoinEventService, messageServiceActor: Acto
           logger.debug("exception leave event:", e)
           sended ! JoinServiceResponse.unexpectedError(e.getMessage).toJson.prettyPrint
         }
+      }
+    case GetEventJoinedUsers(eId) =>
+      val sended = sender()
+      service.getEventsJoinedUsers(eId).onComplete {
+        case Success(users) =>
+          sended ! JoinServiceResponse.responseSuccess(Some(users.map(_.copy(clientId = None, remindTime = None)))).toJson.prettyPrint
+        case Failure(e) =>
+          logger.debug("exception leave event:", e)
+          sended ! JoinServiceResponse.unexpectedError(e.getMessage).toJson.prettyPrint
       }
   }
   private def isFullChain(result: Boolean)(userJoinEvent: UserJoinEvent, sender: SenderHelper): Future[Boolean] = {

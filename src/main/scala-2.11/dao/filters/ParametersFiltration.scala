@@ -65,7 +65,7 @@ abstract class ParametersFiltration[E, T <: Table[E]](_paramMap: Map[String,List
     None
   }
 
-  protected def createQuerySortConditions(q: Query[T,E,Seq]): Query[T,E,Seq] = {
+  def createQuerySortConditions(q: Query[T,E,Seq]): Query[T,E,Seq] = {
     var result = q
     sortList.foreach((item: String) => {
       var isDesc = false
