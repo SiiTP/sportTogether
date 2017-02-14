@@ -3,6 +3,7 @@ package service
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.AskableActorRef
 import com.typesafe.scalalogging.Logger
+import dao.filters.EventFilters
 import dao.{UserDAO, TaskDao, EventUsersDAO, EventsDAO}
 import entities.db.{MapEvent, MapEventAdapter, User, UserJoinEvent}
 import messages.{FcmMessage, FcmTextMessage}
@@ -39,8 +40,8 @@ class JoinEventService {
   def getEventsJoinedUsers(eId: Int): Future[Seq[User]] = {
     eventUsersDAO.getById(eId).map(_.map(_.userId)).flatMap(userDao.getUsersByIds)
   }
-  def getEventsOfUserJoined(user: User): Future[Seq[MapEventAdapter]] = {
-    EventService.toAdapterForm(eventUsersDAO.getEventsOfUserJoined(user), user)
+  def getEventsOfUserJoined(user: User, filters: EventFilters): Future[Seq[MapEventAdapter]] = {
+    EventService.toAdapterForm(eventUsersDAO.getEventsOfUserJoined(user, filters), user)
   }
   def getFutureEvents = eventUsersDAO.getEvents()
   def updateNotified(items: Seq[(Int,Int)]) = eventUsersDAO.updateNotified(items)
@@ -86,7 +87,7 @@ class JoinEventService {
 
 object JoinEventService {
   case class AddUserToEvent(eventId: Int, user: User, token: String)
-  case class GetEventsOfUserJoined(user: User)
+  case class GetEventsOfUserJoined(user: User, filters: EventFilters)
   case class GetTokens(eId: Int)
   case class LeaveEvent(eId: Int, user: User)
   case class GetCreatorToken(eId: Int)
@@ -136,9 +137,9 @@ class JoinEventServiceActor(service: JoinEventService, messageServiceActor: Acto
           sended ! JoinServiceResponse.unexpectedError.toJson.prettyPrint
           logger.debug("exception get creator token :", e)
       }
-    case GetEventsOfUserJoined(user) =>
+    case GetEventsOfUserJoined(user, filter) =>
       val sended = sender()
-      service.getEventsOfUserJoined(user).onComplete {
+      service.getEventsOfUserJoined(user, filter).onComplete {
         case Success(result) =>
           sended ! JoinServiceResponse.responseSuccess[Seq[MapEventAdapter]](Some(result)).toJson.prettyPrint
         case Failure(e) =>
@@ -166,8 +167,8 @@ class JoinEventServiceActor(service: JoinEventService, messageServiceActor: Acto
               case optEvent =>
                 optEvent match {
                   case Success(event) =>
-                    messageServiceActor ! MessageService.SendEventsTextMessageToCreator(eId,
-                      FcmTextMessage(s"Пользователь ${user.name.getOrElse("")} покинул событие",s"Пользователь покинул событие ${event.name}",FcmMessage.USER_LEFT, Some(event.toJson)))
+//                    messageServiceActor ! MessageService.SendEventsTextMessageToCreator(eId,
+//                      FcmTextMessage(s"Пользователь ${user.name.getOrElse("")} покинул событие",s"Пользователь покинул событие ${event.name}",FcmMessage.USER_LEFT, Some(event.toJson)))
                   case Failure(e) =>
                     logger.debug("exception leave event:", e)
                     sended ! JoinServiceResponse.unexpectedError(e.getMessage).toJson.prettyPrint

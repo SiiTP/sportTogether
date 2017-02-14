@@ -4,6 +4,7 @@ package dao
 import java.sql.Timestamp
 
 import com.typesafe.scalalogging.Logger
+import dao.filters.EventFilters
 import entities.db._
 import slick.driver.MySQLDriver.api._
 import slick.jdbc.GetResult
@@ -53,12 +54,14 @@ class EventUsersDAO extends DatabaseDAO[UserJoinEvent, Int]{
     execute(query.result)
   }
 
-  def getEventsOfUserJoined(user: User): Future[Seq[MapEvent]] = {
+  def getEventsOfUserJoined(user: User, filters: EventFilters): Future[Seq[MapEvent]] = {
     val idUser = user.id.getOrElse(0)
     val seq = for {
-      (e, rel) <- tableEvent join table on (_.id === _.eventId ) if rel.userId === idUser
+      (e, rel) <- tableEvent join table on (_.id === _.eventId ) if rel.userId === idUser && e.isEnded === false && e.isExpired === false
     } yield e
-    execute(seq.result)
+
+    val query = filters.createQueryWithFilter(seq)
+    execute(query.result)
   }
 
   def getEvents(): Future[Seq[(Int, String,Int,String, Double, Double)]] = {

@@ -126,7 +126,7 @@ object EventService {
 
   def toAdapterForm(futureSeq: Future[Seq[MapEvent]], user: User): Future[Seq[MapEventAdapter]] = {
     val futureAdapters = futureSeq.flatMap(seq => {
-      eventUsersDAO.getEventsOfUserJoined(user)
+      eventUsersDAO.getEventsOfUserJoined(user,new EventFilters(Map()))
         .zip(eventsDAO.getUserReportsEventsId(user.id))
         .zip(categoryDAO.getCategoriesByIds(seq.map(_.categoryId).distinct))
         .zip(userDao.getUsersByIds(seq.map(_.userId.getOrElse(0)).distinct))

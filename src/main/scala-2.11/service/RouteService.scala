@@ -100,7 +100,7 @@ class RouteServiceActor(_accountServiceRef: AskableActorRef,
   override def sendGetEventJoinedUsers(eventId: Int): Future[Any] = _joinEventService ? JoinEventService.GetEventJoinedUsers(eventId)
 
   override def sendUserJoinEvent(user: User, eventId: Int, token: String): Future[Any] = _joinEventService ? JoinEventService.AddUserToEvent(eventId, user, token)
-  override def sendGetJoinedEvents(user: User) = _joinEventService ? JoinEventService.GetEventsOfUserJoined(user)
+  override def sendGetJoinedEvents(user: User, param: Map[String,List[String]]) = _joinEventService ? JoinEventService.GetEventsOfUserJoined(user, new EventFilters(param))
   override def sendUserLeaveEvent(user: User, eventId: Int): Future[Any] = _joinEventService ? JoinEventService.LeaveEvent(eventId, user)
 
   override def testMessageSend(token: String): Future[Any] = _fcmService ? FcmService.SendMessage(Array(token),JsObject("hello" -> JsString("world"), "id" -> JsNumber(5), "bools" -> JsBoolean(true)))
@@ -147,7 +147,7 @@ trait RouteService extends HttpService {
   def sendGetEvents(param: Map[String,List[String]], user: User): Future[Any]
 
   def sendGetUserEvents(id: Int, user: User, param: Map[String,List[String]]): Future[Any]
-  def sendGetJoinedEvents(user: User): Future[Any]
+  def sendGetJoinedEvents(user: User, param: Map[String,List[String]]): Future[Any]
 
   def sendGetEventsByCategoryId(id: Int): Future[Any]
 
@@ -315,7 +315,7 @@ trait RouteService extends HttpService {
         }
     } ~
       (path("joined") & get) {
-      onComplete(sendGetJoinedEvents(user)) { (tryAny: Try[Any]) =>
+      onComplete(sendGetJoinedEvents(user, params)) { (tryAny: Try[Any]) =>
         defaultResponse(tryAny, "/event/joined with user : " + user)
       }
     } ~

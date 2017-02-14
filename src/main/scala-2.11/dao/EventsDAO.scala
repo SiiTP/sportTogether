@@ -27,7 +27,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
 
   private val table = Tables.events
   private val logger = Logger("webApp")
-
+  private val maxReportsCount = 10
   private val reportsTable = Tables.userReports
   override def create(r: MapEvent): Future[MapEvent] = {
     val c = r.copy(reports = Some(0), currentUsers = Some(0))
@@ -94,7 +94,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
 
   def getEvents(filters: EventFilters) = {
     val query = table.filter(_.isExpired === false)
-      .filter(_.isTemplate === false).sortBy(_.date.asc)
+      .filter(_.isTemplate === false).filter(_.report < maxReportsCount).sortBy(_.date.asc)
     val newnewQuery = filters.createQueryWithFilter(query).take(150).result
     execute(newnewQuery)
   }
@@ -147,7 +147,7 @@ class EventsDAO extends DatabaseDAO[MapEvent,Int] {
     execute(distanceQuery.distanceQueryEventIds).flatMap[Seq[MapEvent]]((res: Vector[Int]) => {
       val query = table.filter(_.id inSet res)
       execute[Seq[MapEvent]](filters.createQueryWithFilter(query)
-        .filter(_.isExpired === false).filter(_.isTemplate === false).result)
+        .filter(_.isExpired === false).filter(_.isTemplate === false).filter(_.report < maxReportsCount).result)
     })
   }
 }
